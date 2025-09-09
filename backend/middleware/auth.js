@@ -14,13 +14,13 @@ module.exports = function (req, res, next) {
 
     try {
         // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        // const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Attach user data to request object
-        req.user = {
-            id: decoded.id,
-            role: decoded.role
-        };
+        // // Attach user data to request object
+        // req.user = {
+        //     id: decoded.id,
+        //     role: decoded.role
+        // };
 
         next();
     } catch (err) {

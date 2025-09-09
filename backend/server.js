@@ -34,6 +34,10 @@ mongoose.connect(process.env.Users_DB, {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', prodRoutes);
+app.use('/api/suppliers', require('./routes/suppliers'));
+app.use('/api/orders', require('./routes/orders'));
+app.use('/api/transactions', require('./routes/transactions'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 
 // Example protected route

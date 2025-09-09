@@ -1,10 +1,10 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const products = require('../models/products');
+const Product = require('../models/products');
 const router = express.Router();
 
 // Add new product
-router.post('/add', async (req, res) => {
+router.post('/', async (req, res) => {
     const { name, category, description, stockLevel, reorderPoint, price, supplierId } = req.body;
 
     try {
@@ -32,7 +32,7 @@ router.post('/add', async (req, res) => {
 });
 
 // Edit a product
-router.put('/edit/:id', async (req, res) => {
+router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const { name, category, description, stockLevel, reorderPoint, price, supplierId } = req.body;
 
@@ -59,7 +59,7 @@ router.put('/edit/:id', async (req, res) => {
 });
 
 // Delete a product
-router.delete('/delete/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -67,7 +67,7 @@ router.delete('/delete/:id', async (req, res) => {
         if (!deletedProduct) {
             return res.status(404).json({ message: "Product not found" });
         }
-
+        con
         res.status(200).json({ message: "Product deleted successfully" });
     } catch (error) {
         console.error(error);
@@ -76,7 +76,7 @@ router.delete('/delete/:id', async (req, res) => {
 });
 
 // Get list of products with optional search by category or name
-router.get('/list', async (req, res) => {
+router.get('/', async (req, res) => {
     const { search } = req.query;
 
     try {
