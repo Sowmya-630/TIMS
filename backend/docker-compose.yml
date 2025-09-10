@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: tims-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: tims_database
+      MYSQL_USER: tims_user
+      MYSQL_PASSWORD: tims_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - tims-network
+
+  # TIMS Backend API
+  api:
+    build: .
+    container_name: tims-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: tims_database
+      DB_USER: tims_user
+      DB_PASSWORD: tims_password
+      JWT_SECRET: your_super_secret_jwt_key_here
+      JWT_EXPIRES_IN: 24h
+      PORT: 5000
+      CORS_ORIGIN: http://localhost:3000
+    depends_on:
+      - mysql
+    networks:
+      - tims-network
+    volumes:
+      - ./logs:/app/logs
+
+volumes:
+  mysql_data:
+
+networks:
+  tims-network:
+    driver: bridge
