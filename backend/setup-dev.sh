@@ -52,3 +52,4 @@ echo ""
 echo "Note: The server will start even without database connection,"
 echo "but database operations will fail until MySQL is configured."
 echo ""
+

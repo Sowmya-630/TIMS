@@ -197,7 +197,15 @@ const seedDatabase = async () => {
     for (const order of orders) {
       await executeQuery(
         'INSERT INTO orders (id, supplier_id, product_id, quantity, status, expected_date, delivered_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [order.id, order.supplier_id, order.product_id, order.quantity, order.status, order.expected_date, order.delivered_date]
+        [
+          order.id,
+          order.supplier_id,
+          order.product_id,
+          order.quantity,
+          order.status,
+          order.expected_date,
+          order.delivered_date ?? null
+        ]
       );
     }
 
@@ -266,7 +274,15 @@ const seedDatabase = async () => {
     for (const notification of notifications) {
       await executeQuery(
         'INSERT INTO notifications (id, type, title, message, product_id, order_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [notification.id, notification.type, notification.title, notification.message, notification.product_id, notification.order_id, notification.user_id]
+        [
+          notification.id,
+          notification.type,
+          notification.title,
+          notification.message,
+          notification.product_id ?? null,
+          notification.order_id ?? null,
+          notification.user_id ?? null
+        ]
       );
     }
 
@@ -286,3 +302,4 @@ const seedDatabase = async () => {
 
 // Run seeding
 seedDatabase();
+

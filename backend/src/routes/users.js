@@ -28,3 +28,4 @@ router.put('/:id', checkRole(['Admin']), validateId, handleValidationErrors, upd
 router.delete('/:id', checkRole(['Admin']), validateId, handleValidationErrors, deleteUser);
 
 export default router;
+

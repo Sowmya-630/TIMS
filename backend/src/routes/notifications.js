@@ -37,3 +37,4 @@ router.get('/admin/all', checkRole(['Admin']), getAllNotifications);
 router.post('/admin/system', checkRole(['Admin']), createSystemNotification);
 
 export default router;
+

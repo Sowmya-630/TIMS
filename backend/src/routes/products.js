@@ -42,3 +42,4 @@ router.delete('/:id', checkRole(['Admin', 'Manager']), validateId, handleValidat
 router.put('/:id/stock', validateTransaction, handleValidationErrors, updateStock);
 
 export default router;
+

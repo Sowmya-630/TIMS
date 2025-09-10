@@ -1,7 +1,24 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import fs from 'fs';
 
-dotenv.config();
+// Ensure .env is loaded from backend root regardless of CWD
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const candidateEnvPaths = [
+  join(__dirname, '../../.env'), // backend/.env
+  join(process.cwd(), '.env'),   // current working dir
+];
+
+for (const envPath of candidateEnvPaths) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    break;
+  }
+}
 
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',

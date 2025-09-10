@@ -64,3 +64,4 @@ echo "📋 Next steps:"
 echo "1. Run the main setup script: ./setup.sh"
 echo "2. Or start the development server: npm run dev"
 echo ""
+

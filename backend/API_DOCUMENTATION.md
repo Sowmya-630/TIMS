@@ -451,3 +451,4 @@ curl -X PUT http://localhost:5000/api/products/product-uuid/stock \
 curl -X GET http://localhost:5000/api/notifications \
   -H "Authorization: Bearer <token>"
 ```
+

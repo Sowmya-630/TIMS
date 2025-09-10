@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import fs from 'fs';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -29,11 +30,21 @@ import { testConnection } from './config/database.js';
 // Import logger
 import logger from './config/logger.js';
 
-// Load environment variables
-dotenv.config();
-
+// Resolve __dirname first (ESM)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Load environment variables (robust path resolution)
+const candidateEnvPaths = [
+  join(__dirname, '../.env'),     // backend/.env
+  join(process.cwd(), '.env')     // current working dir
+];
+for (const envPath of candidateEnvPaths) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    break;
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;

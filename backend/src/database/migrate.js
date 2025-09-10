@@ -146,3 +146,4 @@ const createTables = async () => {
 
 // Run migration
 createTables();
+

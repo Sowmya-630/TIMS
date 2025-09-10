@@ -36,3 +36,4 @@ router.post('/', validateTransaction, handleValidationErrors, createTransaction)
 router.delete('/:id', checkRole(['Admin', 'Manager']), validateId, handleValidationErrors, deleteTransaction);
 
 export default router;
+

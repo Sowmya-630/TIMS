@@ -36,3 +36,4 @@ router.put('/:id', checkRole(['Admin', 'Manager']), validateId, handleValidation
 router.delete('/:id', checkRole(['Admin', 'Manager']), validateId, handleValidationErrors, deleteSupplier);
 
 export default router;
+

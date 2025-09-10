@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
+import api from '../lib/api';
 
 interface AuthContextType {
   user: User | null;
@@ -25,70 +26,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing user session
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    const token = localStorage.getItem('tims_token');
+    if (!token) { setIsLoading(false); return; }
+    (async () => {
+      try {
+        const res = await api.get('/auth/profile');
+        setUser(res.data.user);
+      } catch (_) {
+        localStorage.removeItem('tims_token');
+      } finally {
+        setIsLoading(false);
+      }
+    })();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-    const foundUser = users.find(u => u.email === email && u.password === password);
-    
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('currentUser', JSON.stringify(foundUser));
+    try {
+      const res = await api.post('/auth/login', { email, password });
+      localStorage.setItem('tims_token', res.data.token);
+      setUser(res.data.user);
       return true;
+    } catch (_) {
+      return false;
     }
-    return false;
   };
 
   const signup = async (fullName: string, email: string, password: string, role: 'Admin' | 'Manager' | 'Staff'): Promise<boolean> => {
-    const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-    
-    // Check if user already exists
-    if (users.some(u => u.email === email)) {
+    try {
+      const res = await api.post('/auth/register', { fullName, email, password, role });
+      localStorage.setItem('tims_token', res.data.token);
+      setUser(res.data.user);
+      return true;
+    } catch (_) {
       return false;
     }
-
-    const newUser: User = {
-      id: Date.now().toString(),
-      fullName,
-      email,
-      password,
-      role,
-      createdAt: new Date().toISOString(),
-    };
-
-    users.push(newUser);
-    localStorage.setItem('users', JSON.stringify(users));
-    
-    setUser(newUser);
-    localStorage.setItem('currentUser', JSON.stringify(newUser));
-    return true;
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('currentUser');
+    localStorage.removeItem('tims_token');
   };
 
   const updateProfile = (userData: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...userData };
-      setUser(updatedUser);
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-      
-      // Update in users array
-      const users: User[] = JSON.parse(localStorage.getItem('users') || '[]');
-      const userIndex = users.findIndex(u => u.id === user.id);
-      if (userIndex !== -1) {
-        users[userIndex] = updatedUser;
-        localStorage.setItem('users', JSON.stringify(users));
-      }
-    }
+    if (!user) return;
+    const updatedUser = { ...user, ...userData };
+    setUser(updatedUser);
+    // Optionally call backend PUT /auth/profile here if needed
   };
 
   const value = {

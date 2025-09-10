@@ -40,3 +40,4 @@ router.put('/:id/status', checkRole(['Admin', 'Manager']), validateId, handleVal
 router.delete('/:id', checkRole(['Admin', 'Manager']), validateId, handleValidationErrors, deleteOrder);
 
 export default router;
+

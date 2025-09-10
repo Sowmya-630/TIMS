@@ -6,3 +6,4 @@ USE tims_database;
 CREATE USER IF NOT EXISTS 'tims_user'@'%' IDENTIFIED BY 'tims_password';
 GRANT ALL PRIVILEGES ON tims_database.* TO 'tims_user'@'%';
 FLUSH PRIVILEGES;
+
