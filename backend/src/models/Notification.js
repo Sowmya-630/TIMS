@@ -167,7 +167,7 @@ export class Notification {
 
   // Delete old notifications (cleanup)
   static async deleteOld(daysOld = 30) {
-    const query = 'DELETE FROM notifications WHERE timestamp < DATE_SUB(NOW(), INTERVAL ? DAY)';
+    const query = `DELETE FROM notifications WHERE datetime(timestamp) < datetime('now', '-' || ? || ' day')`;
     const result = await executeQuery(query, [daysOld]);
     return result.affectedRows;
   }

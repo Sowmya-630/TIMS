@@ -207,7 +207,7 @@ export class Order {
       LEFT JOIN suppliers s ON o.supplier_id = s.id
       LEFT JOIN products p ON o.product_id = p.id
       WHERE o.status IN ('Pending', 'Confirmed', 'Shipped') 
-      AND o.expected_date < NOW()
+      AND datetime(o.expected_date) < datetime('now')
       ORDER BY o.expected_date ASC
     `;
     const orders = await executeQuery(query);

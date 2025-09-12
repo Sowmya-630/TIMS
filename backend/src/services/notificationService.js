@@ -96,7 +96,7 @@ class NotificationService {
         SELECT * FROM notifications 
         WHERE type = 'Low Stock' 
         AND product_id = ? 
-        AND timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+        AND datetime(timestamp) > datetime('now', '-1 hour')
         ORDER BY timestamp DESC 
         LIMIT 1
       `;
@@ -115,7 +115,7 @@ class NotificationService {
         SELECT * FROM notifications 
         WHERE type = 'Overdue Order' 
         AND order_id = ? 
-        AND timestamp > DATE_SUB(NOW(), INTERVAL 6 HOUR)
+        AND datetime(timestamp) > datetime('now', '-6 hour')
         ORDER BY timestamp DESC 
         LIMIT 1
       `;

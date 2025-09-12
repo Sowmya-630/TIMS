@@ -12,125 +12,173 @@ const createTables = async () => {
     // Create users table
     await executeQuery(`
       CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-        full_name VARCHAR(100) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        role ENUM('Admin', 'Manager', 'Staff') NOT NULL DEFAULT 'Staff',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_email (email),
-        INDEX idx_role (role)
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        full_name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'Staff',
+        created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+        updated_at TEXT DEFAULT (CURRENT_TIMESTAMP)
       )
     `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`);
 
     // Create suppliers table
     await executeQuery(`
       CREATE TABLE IF NOT EXISTS suppliers (
-        id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-        name VARCHAR(100) NOT NULL,
-        contact_person VARCHAR(100) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        phone VARCHAR(20) NOT NULL,
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        name TEXT NOT NULL,
+        contact_person TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT NOT NULL,
         address TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_name (name),
-        INDEX idx_email (email)
+        created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+        updated_at TEXT DEFAULT (CURRENT_TIMESTAMP)
       )
     `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_suppliers_name ON suppliers(name)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_suppliers_email ON suppliers(email)`);
 
     // Create products table
     await executeQuery(`
       CREATE TABLE IF NOT EXISTS products (
-        id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-        name VARCHAR(100) NOT NULL,
-        category VARCHAR(50) NOT NULL,
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
         description TEXT,
-        stock_level INT NOT NULL DEFAULT 0,
-        reorder_point INT NOT NULL DEFAULT 0,
-        price DECIMAL(10,2) NOT NULL,
-        supplier_id VARCHAR(36) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
-        INDEX idx_name (name),
-        INDEX idx_category (category),
-        INDEX idx_stock_level (stock_level),
-        INDEX idx_supplier (supplier_id)
+        stock_level INTEGER NOT NULL DEFAULT 0,
+        reorder_point INTEGER NOT NULL DEFAULT 0,
+        price REAL NOT NULL,
+        supplier_id TEXT NOT NULL,
+        created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+        updated_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+        FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
       )
     `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_products_stock_level ON products(stock_level)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_products_supplier ON products(supplier_id)`);
 
     // Create orders table
     await executeQuery(`
       CREATE TABLE IF NOT EXISTS orders (
-        id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-        supplier_id VARCHAR(36) NOT NULL,
-        product_id VARCHAR(36) NOT NULL,
-        quantity INT NOT NULL,
-        status ENUM('Pending', 'Confirmed', 'Shipped', 'Delivered', 'Overdue') NOT NULL DEFAULT 'Pending',
-        order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        expected_date TIMESTAMP NOT NULL,
-        delivered_date TIMESTAMP NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        supplier_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'Pending',
+        order_date TEXT DEFAULT (CURRENT_TIMESTAMP),
+        expected_date TEXT NOT NULL,
+        delivered_date TEXT NULL,
+        created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+        updated_at TEXT DEFAULT (CURRENT_TIMESTAMP),
         FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
-        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-        INDEX idx_supplier (supplier_id),
-        INDEX idx_product (product_id),
-        INDEX idx_status (status),
-        INDEX idx_order_date (order_date)
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
       )
     `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_orders_supplier ON orders(supplier_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_orders_product ON orders(product_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_orders_order_date ON orders(order_date)`);
 
     // Create transactions table
     await executeQuery(`
       CREATE TABLE IF NOT EXISTS transactions (
-        id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-        product_id VARCHAR(36) NOT NULL,
-        type ENUM('Stock In', 'Stock Out') NOT NULL,
-        quantity INT NOT NULL,
-        reason VARCHAR(200) NOT NULL,
-        user_id VARCHAR(36) NOT NULL,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        product_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        reason TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        timestamp TEXT DEFAULT (CURRENT_TIMESTAMP),
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        INDEX idx_product (product_id),
-        INDEX idx_user (user_id),
-        INDEX idx_type (type),
-        INDEX idx_timestamp (timestamp)
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_transactions_product ON transactions(product_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_transactions_timestamp ON transactions(timestamp)`);
 
     // Create notifications table
     await executeQuery(`
       CREATE TABLE IF NOT EXISTS notifications (
-        id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-        type ENUM('Low Stock', 'Overdue Order', 'System') NOT NULL,
-        title VARCHAR(200) NOT NULL,
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
         message TEXT NOT NULL,
-        is_read BOOLEAN DEFAULT FALSE,
-        user_id VARCHAR(36) NULL,
-        product_id VARCHAR(36) NULL,
-        order_id VARCHAR(36) NULL,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_read INTEGER DEFAULT 0,
+        user_id TEXT NULL,
+        product_id TEXT NULL,
+        order_id TEXT NULL,
+        timestamp TEXT DEFAULT (CURRENT_TIMESTAMP),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-        INDEX idx_user (user_id),
-        INDEX idx_type (type),
-        INDEX idx_is_read (is_read),
-        INDEX idx_timestamp (timestamp)
+        FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
       )
     `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_notifications_timestamp ON notifications(timestamp)`);
 
     // Create product_categories table for better category management
     await executeQuery(`
       CREATE TABLE IF NOT EXISTS product_categories (
-        id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-        name VARCHAR(50) UNIQUE NOT NULL,
+        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(4))||'-'||hex(randomblob(2))||'-'||hex(randomblob(2))||'-'||hex(randomblob(2))||'-'||hex(randomblob(6)))),
+        name TEXT UNIQUE NOT NULL,
         description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT DEFAULT (CURRENT_TIMESTAMP)
       )
     `);
 

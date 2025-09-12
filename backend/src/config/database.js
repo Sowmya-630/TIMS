@@ -1,4 +1,5 @@
-import mysql from 'mysql2/promise';
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -20,26 +21,25 @@ for (const envPath of candidateEnvPaths) {
   }
 }
 
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'tims_database',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-};
+const databaseFile = process.env.SQLITE_DB_PATH || join(__dirname, '../../tims.sqlite');
 
-// Create connection pool
-const pool = mysql.createPool(dbConfig);
+let dbPromise;
+const getDb = async () => {
+  if (!dbPromise) {
+    dbPromise = open({ filename: databaseFile, driver: sqlite3.Database }).then(async (db) => {
+      await db.exec('PRAGMA foreign_keys = ON');
+      return db;
+    });
+  }
+  return dbPromise;
+};
 
 // Test database connection
 export const testConnection = async () => {
   try {
-    const connection = await pool.getConnection();
+    const db = await getDb();
+    await db.get('SELECT 1');
     console.log('✅ Database connected successfully');
-    connection.release();
     return true;
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
@@ -50,8 +50,29 @@ export const testConnection = async () => {
 // Execute query with error handling
 export const executeQuery = async (query, params = []) => {
   try {
-    const [results] = await pool.execute(query, params);
-    return results;
+    const db = await getDb();
+    const trimmed = query.trim().toUpperCase();
+    if (trimmed.startsWith('SELECT')) {
+      return await db.all(query, params);
+    } else if (trimmed.startsWith('INSERT') || trimmed.startsWith('UPDATE') || trimmed.startsWith('DELETE') || trimmed.startsWith('CREATE') || trimmed.startsWith('DROP') || trimmed.startsWith('ALTER')) {
+      const result = await db.run(query, params);
+      // Normalize to previous shape when code expects insertId / affectedRows
+      let insertId = result.lastID;
+      if (trimmed.startsWith('INSERT')) {
+        // Try to return the logical id column for tables using TEXT ids with defaults
+        const match = /INSERT\s+INTO\s+([`"]?)(\w+)\1/i.exec(query);
+        if (match && match[2]) {
+          const table = match[2];
+          try {
+            const row = await db.get(`SELECT id FROM ${table} ORDER BY rowid DESC LIMIT 1`);
+            if (row && row.id) insertId = row.id;
+          } catch {}
+        }
+      }
+      return { insertId, affectedRows: result.changes };
+    } else {
+      return await db.all(query, params);
+    }
   } catch (error) {
     console.error('Database query error:', error);
     throw error;
@@ -60,24 +81,25 @@ export const executeQuery = async (query, params = []) => {
 
 // Execute transaction
 export const executeTransaction = async (queries) => {
-  const connection = await pool.getConnection();
+  const db = await getDb();
   try {
-    await connection.beginTransaction();
-    
+    await db.exec('BEGIN');
     const results = [];
     for (const { query, params } of queries) {
-      const [result] = await connection.execute(query, params);
-      results.push(result);
+      const upper = query.trim().toUpperCase();
+      if (upper.startsWith('SELECT')) {
+        results.push(await db.all(query, params));
+      } else {
+        const res = await db.run(query, params);
+        results.push({ insertId: res.lastID, affectedRows: res.changes });
+      }
     }
-    
-    await connection.commit();
+    await db.exec('COMMIT');
     return results;
   } catch (error) {
-    await connection.rollback();
+    await db.exec('ROLLBACK');
     throw error;
-  } finally {
-    connection.release();
   }
 };
 
-export default pool;
+export default { getDb };
