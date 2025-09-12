@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { authAPI } from '../lib/api';
 import { Eye, EyeOff, Mail, Lock, Zap, UserPlus } from 'lucide-react';
@@ -16,6 +16,17 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Set default credentials for Admin on component mount
+  useEffect(() => {
+    if (isLogin && formData.role === 'Admin') {
+      setFormData({
+        ...formData,
+        email: 'admin@tims.com',
+        password: 'Password123!'
+      });
+    }
+  }, [isLogin]);
+  
   // Handle role selection for login
   const handleRoleSelect = (role) => {
     if (role === 'Admin') {
