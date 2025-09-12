@@ -100,18 +100,10 @@ After running `npm run seed`:
 ## Commands
 
 ```bash
-# Development
+cd /..path/TIMS/backend
+npm install
+npm run migrate
 npm run dev
-
-# Production
-npm start
-
-# Database
-npm run migrate    # Create tables
-npm run seed      # Add sample data
-
-# Testing
-npm test
 ```
 
 ## Troubleshooting
