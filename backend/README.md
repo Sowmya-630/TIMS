@@ -102,7 +102,7 @@ After running `npm run seed`:
 ```bash
 cd /..path/TIMS/backend
 npm install
-npm run migrate
+npm run migrate && npm run seed
 npm run dev
 ```
 
