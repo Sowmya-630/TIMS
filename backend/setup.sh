@@ -18,13 +18,7 @@ fi
 
 echo "✅ Node.js version: $(node -v)"
 
-# Check if MySQL is installed
-if ! command -v mysql &> /dev/null; then
-    echo "❌ MySQL is not installed. Please install MySQL 8.0+ first."
-    exit 1
-fi
-
-echo "✅ MySQL is installed"
+echo "✅ Using SQLite (no server install required)"
 
 # Install dependencies
 echo "📦 Installing dependencies..."
@@ -65,25 +59,8 @@ import('./src/config/database.js').then(({ testConnection }) => {
 if [ $? -eq 0 ]; then
     echo "✅ Database connection test passed"
 else
-    echo "❌ Database connection test failed."
-    echo ""
-    echo "🔧 Database Setup Instructions:"
-    echo "1. Make sure MySQL is running: brew services start mysql"
-    echo "2. Create the database:"
-    echo "   mysql -u root -p"
-    echo "   CREATE DATABASE tims_database;"
-    echo "   EXIT;"
-    echo "3. Update the .env file with your MySQL credentials"
-    echo "4. Run this setup script again"
-    echo ""
-    echo "Alternatively, you can skip database setup for now and run:"
-    echo "npm run dev"
-    echo ""
-    read -p "Do you want to continue without database setup? (y/n): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
+    echo "❌ Database connection test failed. Please check file permissions or SQLITE_DB_PATH."
+    exit 1
 fi
 
 # Run database migration (only if database connection was successful)
