@@ -62,9 +62,11 @@ CORS_ORIGIN=http://localhost:3000
 
 After running `npm run seed`:
 
-- **Admin:** admin@tims.com / password123
-- **Manager:** manager@tims.com / password123  
-- **Staff:** staff@tims.com / password123
+- **Admin:** admin@tims.com / Password123!
+- **Manager:** manager@tims.com / Password123!  
+- **Staff:** staff@tims.com / Password123!
+
+**Note:** Staff can also sign up with any email address.
 
 ## API Endpoints
 

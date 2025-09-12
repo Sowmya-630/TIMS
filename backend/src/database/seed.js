@@ -37,7 +37,7 @@ const seedDatabase = async () => {
     }
 
     // Seed users
-    const hashedPassword = await hashPassword('password123');
+    const hashedPassword = await hashPassword('Password123!');
     const users = [
       {
         id: 'admin-001',

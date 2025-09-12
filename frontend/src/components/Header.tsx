@@ -35,6 +35,10 @@ export default function Header() {
   }, []);
 
   const handleLogout = () => {
+    // Clear token from localStorage
+    localStorage.removeItem('token');
+    
+    // Reset app state
     dispatch({ type: 'SET_AUTHENTICATED', payload: false });
     dispatch({ type: 'SET_PAGE', payload: 'intro' });
     dispatch({ type: 'SET_USER', payload: null });

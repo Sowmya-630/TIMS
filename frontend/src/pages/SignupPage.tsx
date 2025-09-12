@@ -1,25 +1,27 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { authAPI } from '../lib/api';
-import { Eye, EyeOff, Mail, Lock, Zap } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Zap } from 'lucide-react';
 
-export default function LoginPage() {
+export default function SignupPage() {
   const { dispatch } = useApp();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    email: 'admin@tims.com',
-    password: 'password123'
+    fullName: '',
+    email: '',
+    password: '',
+    role: 'Staff'
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
-      const response = await authAPI.login(formData);
+      const response = await authAPI.register(formData);
       
       if (response.success && response.user && response.token) {
         // Store token in localStorage
@@ -29,9 +31,9 @@ export default function LoginPage() {
         dispatch({ type: 'SET_USER', payload: response.user });
         dispatch({ type: 'SET_AUTHENTICATED', payload: true });
         dispatch({ type: 'SET_PAGE', payload: 'dashboard' });
-        dispatch({ type: 'ADD_ALERT', payload: { type: 'success', message: 'Welcome back! Login successful.' }});
+        dispatch({ type: 'ADD_ALERT', payload: { type: 'success', message: 'Account created successfully!' }});
       } else {
-        setError(response.message || 'Login failed');
+        setError(response.message || 'Signup failed');
       }
     } catch (err) {
       setError('Network error. Please check if backend is running.');
@@ -54,13 +56,31 @@ export default function LoginPage() {
               <p className="text-sm text-gray-500 dark:text-gray-400">Telecom Inventory</p>
             </div>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h2>
-          <p className="text-gray-600 dark:text-gray-300">Sign in to your account to continue</p>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Create Account</h2>
+          <p className="text-gray-600 dark:text-gray-300">Sign up to get started</p>
         </div>
 
-        {/* Login Form */}
+        {/* Signup Form */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8">
-          <form onSubmit={handleLogin} className="space-y-6">
+          <form onSubmit={handleSignup} className="space-y-6">
+            <div>
+              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Full Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  id="fullName"
+                  type="text"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                  placeholder="Enter your full name"
+                  required
+                />
+              </div>
+            </div>
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Email Address
@@ -104,20 +124,20 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">Remember me</span>
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Role
               </label>
-              <button
-                type="button"
-                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+              <select
+                id="role"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                className="w-full py-3 px-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 text-gray-900 dark:text-white"
               >
-                Forgot Password?
-              </button>
+                <option value="Staff">Staff</option>
+                <option value="Manager">Manager</option>
+                <option value="Admin">Admin</option>
+              </select>
             </div>
 
             {error && (
@@ -134,22 +154,22 @@ export default function LoginPage() {
               {isLoading ? (
                 <div className="flex items-center justify-center space-x-2">
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Signing in...</span>
+                  <span>Creating account...</span>
                 </div>
               ) : (
-                'Sign In'
+                'Create Account'
               )}
             </button>
           </form>
 
           <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
             <p className="text-center text-sm text-gray-600 dark:text-gray-300">
-              Don't have an account?{' '}
+              Already have an account?{' '}
               <button 
-                onClick={() => dispatch({ type: 'SET_PAGE', payload: 'signup' })}
+                onClick={() => dispatch({ type: 'SET_PAGE', payload: 'login' })}
                 className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
               >
-                Sign up for free
+                Sign in
               </button>
             </p>
           </div>
@@ -162,16 +182,6 @@ export default function LoginPage() {
           >
             ← Back to Home
           </button>
-        </div>
-
-        {/* Demo Credentials */}
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
-          <p className="text-sm text-blue-800 dark:text-blue-200 text-center">
-            <strong>Test Credentials:</strong><br />
-            Admin: admin@tims.com / password123<br />
-            Manager: manager@tims.com / password123<br />
-            Staff: staff@tims.com / password123
-          </p>
         </div>
       </div>
     </div>
