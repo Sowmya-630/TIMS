@@ -28,6 +28,11 @@ function App() {
       <Routes>
         <Route path="/" element={user ? <UserDashboard /> : <LandingPage />} />
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            {user?.role === 'Admin' ? <AdminDashboard /> : <UserDashboard />}
+          </ProtectedRoute>
+        } />
         <Route path="/plans" element={
           <ProtectedRoute>
             <PlansPage />
@@ -44,7 +49,7 @@ function App() {
           </ProtectedRoute>
         } />
         <Route path="/admin" element={
-          <ProtectedRoute requiredRole="admin">
+          <ProtectedRoute requiredRole="Admin">
             <AdminDashboard />
           </ProtectedRoute>
         } />

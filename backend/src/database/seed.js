@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { hashPassword } from '../config/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -9,37 +10,40 @@ const dbPath = join(__dirname, '../../subscription_management.db');
 
 const db = new sqlite3.Database(dbPath);
 
-const seedData = `
+// Sample user data with plain text passwords
+const sampleUsers = [
+  { fullName: 'Admin User', email: 'admin@subscription.com', password: 'admin123', role: 'Admin' },
+  { fullName: 'John Doe', email: 'john.doe@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Jane Smith', email: 'jane.smith@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Michael Johnson', email: 'michael.johnson@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Sarah Wilson', email: 'sarah.wilson@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'David Brown', email: 'david.brown@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Emily Davis', email: 'emily.davis@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Robert Miller', email: 'robert.miller@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Lisa Anderson', email: 'lisa.anderson@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'James Taylor', email: 'james.taylor@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Maria Garcia', email: 'maria.garcia@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Christopher Martinez', email: 'chris.martinez@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Jennifer Lopez', email: 'jennifer.lopez@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Daniel Rodriguez', email: 'daniel.rodriguez@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Ashley Thompson', email: 'ashley.thompson@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Matthew White', email: 'matthew.white@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Amanda Harris', email: 'amanda.harris@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Joshua Clark', email: 'joshua.clark@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Jessica Lewis', email: 'jessica.lewis@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Andrew Walker', email: 'andrew.walker@email.com', password: 'password123', role: 'EndUser' }
+];
+
+const clearDataQuery = `
 -- Clear existing data
 DELETE FROM audit_logs;
 DELETE FROM subscriptions;
 DELETE FROM discounts;
 DELETE FROM subscription_plans;
 DELETE FROM users;
+`;
 
--- Sample users (20 entries)
-INSERT INTO users (full_name, email, password, role) VALUES
-('Admin User', 'admin@subscription.com', '$2b$10$example', 'Admin'),
-('John Doe', 'john.doe@email.com', '$2b$10$example', 'EndUser'),
-('Jane Smith', 'jane.smith@email.com', '$2b$10$example', 'EndUser'),
-('Michael Johnson', 'michael.johnson@email.com', '$2b$10$example', 'EndUser'),
-('Sarah Wilson', 'sarah.wilson@email.com', '$2b$10$example', 'EndUser'),
-('David Brown', 'david.brown@email.com', '$2b$10$example', 'EndUser'),
-('Emily Davis', 'emily.davis@email.com', '$2b$10$example', 'EndUser'),
-('Robert Miller', 'robert.miller@email.com', '$2b$10$example', 'EndUser'),
-('Lisa Anderson', 'lisa.anderson@email.com', '$2b$10$example', 'EndUser'),
-('James Taylor', 'james.taylor@email.com', '$2b$10$example', 'EndUser'),
-('Maria Garcia', 'maria.garcia@email.com', '$2b$10$example', 'EndUser'),
-('Christopher Martinez', 'chris.martinez@email.com', '$2b$10$example', 'EndUser'),
-('Jennifer Lopez', 'jennifer.lopez@email.com', '$2b$10$example', 'EndUser'),
-('Daniel Rodriguez', 'daniel.rodriguez@email.com', '$2b$10$example', 'EndUser'),
-('Ashley Thompson', 'ashley.thompson@email.com', '$2b$10$example', 'EndUser'),
-('Matthew White', 'matthew.white@email.com', '$2b$10$example', 'EndUser'),
-('Amanda Harris', 'amanda.harris@email.com', '$2b$10$example', 'EndUser'),
-('Joshua Clark', 'joshua.clark@email.com', '$2b$10$example', 'EndUser'),
-('Jessica Lewis', 'jessica.lewis@email.com', '$2b$10$example', 'EndUser'),
-('Andrew Walker', 'andrew.walker@email.com', '$2b$10$example', 'EndUser');
-
+const plansAndDiscountsQuery = `
 -- Sample subscription plans
 INSERT INTO subscription_plans (name, description, product_type, price, data_quota, duration_days) VALUES
 ('Basic Fibernet', 'Entry level fiber internet plan', 'Fibernet', 29.99, 100, 30),
@@ -56,100 +60,128 @@ INSERT INTO discounts (name, description, discount_percent, start_date, end_date
 ('Family Plan', '25% off for family subscriptions', 25.0, '2024-01-01', '2024-12-31');
 `;
 
-// Get user and plan IDs for creating subscriptions
-const getIdsAndCreateSubscriptions = `
--- Sample subscriptions (linking users to plans)
-INSERT INTO subscriptions (user_id, plan_id, status, start_date, end_date, auto_renew, data_used) 
-SELECT 
-    u.id as user_id,
-    p.id as plan_id,
-    CASE 
-        WHEN u.email LIKE '%john%' THEN 'Active'
-        WHEN u.email LIKE '%jane%' THEN 'Active'
-        WHEN u.email LIKE '%michael%' THEN 'Active'
-        WHEN u.email LIKE '%sarah%' THEN 'Cancelled'
-        WHEN u.email LIKE '%david%' THEN 'Active'
-        WHEN u.email LIKE '%emily%' THEN 'Active'
-        WHEN u.email LIKE '%robert%' THEN 'Expired'
-        WHEN u.email LIKE '%lisa%' THEN 'Active'
-        WHEN u.email LIKE '%james%' THEN 'Active'
-        WHEN u.email LIKE '%maria%' THEN 'Active'
-        WHEN u.email LIKE '%chris%' THEN 'Cancelled'
-        WHEN u.email LIKE '%jennifer%' THEN 'Active'
-        WHEN u.email LIKE '%daniel%' THEN 'Active'
-        WHEN u.email LIKE '%ashley%' THEN 'Active'
-        WHEN u.email LIKE '%matthew%' THEN 'Expired'
-        ELSE 'Active'
-    END as status,
-    date('now', '-30 days') as start_date,
-    date('now', '+30 days') as end_date,
-    CASE WHEN ABS(RANDOM()) % 2 = 0 THEN 1 ELSE 0 END as auto_renew,
-    (ABS(RANDOM()) % 500 + 100) as data_used
-FROM users u
-CROSS JOIN subscription_plans p
-WHERE u.role = 'EndUser' 
-    AND u.email NOT LIKE '%admin%'
-    AND (
-        (u.email LIKE '%john%' AND p.name = 'Premium Fibernet') OR
-        (u.email LIKE '%jane%' AND p.name = 'Basic Fibernet') OR
-        (u.email LIKE '%michael%' AND p.name = 'Enterprise Fibernet') OR
-        (u.email LIKE '%sarah%' AND p.name = 'Basic Broadband') OR
-        (u.email LIKE '%david%' AND p.name = 'Premium Fibernet') OR
-        (u.email LIKE '%emily%' AND p.name = 'Basic Fibernet') OR
-        (u.email LIKE '%robert%' AND p.name = 'Premium Broadband') OR
-        (u.email LIKE '%lisa%' AND p.name = 'Premium Fibernet') OR
-        (u.email LIKE '%james%' AND p.name = 'Basic Fibernet') OR
-        (u.email LIKE '%maria%' AND p.name = 'Enterprise Fibernet') OR
-        (u.email LIKE '%chris%' AND p.name = 'Basic Broadband') OR
-        (u.email LIKE '%jennifer%' AND p.name = 'Premium Fibernet') OR
-        (u.email LIKE '%daniel%' AND p.name = 'Basic Fibernet') OR
-        (u.email LIKE '%ashley%' AND p.name = 'Premium Broadband') OR
-        (u.email LIKE '%matthew%' AND p.name = 'Basic Fibernet') OR
-        (u.email LIKE '%amanda%' AND p.name = 'Premium Fibernet') OR
-        (u.email LIKE '%joshua%' AND p.name = 'Enterprise Fibernet') OR
-        (u.email LIKE '%jessica%' AND p.name = 'Basic Broadband') OR
-        (u.email LIKE '%andrew%' AND p.name = 'Premium Fibernet')
-    );
-
--- Sample audit logs
-INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details)
-SELECT 
-    s.user_id,
-    'create',
-    'subscription',
-    s.id,
-    'Subscription created with plan ' || p.name
-FROM subscriptions s
-JOIN subscription_plans p ON s.plan_id = p.id
-LIMIT 10;
-`;
-
-db.serialize(() => {
-  console.log('🌱 Seeding database with comprehensive sample data...');
-  
-  db.exec(seedData, (err) => {
-    if (err) {
-      console.error('Error seeding basic data:', err);
-      return;
-    }
-    console.log('✅ Basic data seeded successfully');
-    
-    // Now create subscriptions
-    db.exec(getIdsAndCreateSubscriptions, (err) => {
-      if (err) {
-        console.error('Error creating subscriptions:', err);
-      } else {
-        console.log('✅ Subscriptions and audit logs created successfully');
-      }
-      
-      // Close database
-      db.close((err) => {
-        if (err) {
-          console.error('Error closing database:', err);
-        } else {
-          console.log('✅ Seeding completed - 20 users with subscriptions created');
-        }
-      });
+// Function to promisify database operations
+const dbRun = (query, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.run(query, params, function(err) {
+      if (err) reject(err);
+      else resolve({ insertId: this.lastID, changes: this.changes });
     });
   });
-});
+};
+
+const dbExec = (query) => {
+  return new Promise((resolve, reject) => {
+    db.exec(query, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+};
+
+// Main seeding function
+async function seedDatabase() {
+  try {
+    console.log('🌱 Seeding database with comprehensive sample data...');
+    
+    // Clear existing data
+    console.log('🧹 Clearing existing data...');
+    await dbExec(clearDataQuery);
+    
+    // Insert plans and discounts
+    console.log('📋 Creating subscription plans and discounts...');
+    await dbExec(plansAndDiscountsQuery);
+    
+    // Insert users with hashed passwords
+    console.log('👥 Creating users with hashed passwords...');
+    for (const user of sampleUsers) {
+      const hashedPassword = await hashPassword(user.password);
+      await dbRun(
+        'INSERT INTO users (full_name, email, password, role) VALUES (?, ?, ?, ?)',
+        [user.fullName, user.email, hashedPassword, user.role]
+      );
+    }
+    
+    // Create subscriptions
+    console.log('📊 Creating sample subscriptions...');
+    const subscriptionMappings = [
+      { email: 'john.doe@email.com', plan: 'Premium Fibernet', status: 'Active' },
+      { email: 'jane.smith@email.com', plan: 'Basic Fibernet', status: 'Active' },
+      { email: 'michael.johnson@email.com', plan: 'Enterprise Fibernet', status: 'Active' },
+      { email: 'sarah.wilson@email.com', plan: 'Basic Broadband', status: 'Cancelled' },
+      { email: 'david.brown@email.com', plan: 'Premium Fibernet', status: 'Active' },
+      { email: 'emily.davis@email.com', plan: 'Basic Fibernet', status: 'Active' },
+      { email: 'robert.miller@email.com', plan: 'Premium Broadband', status: 'Expired' },
+      { email: 'lisa.anderson@email.com', plan: 'Premium Fibernet', status: 'Active' },
+      { email: 'james.taylor@email.com', plan: 'Basic Fibernet', status: 'Active' },
+      { email: 'maria.garcia@email.com', plan: 'Enterprise Fibernet', status: 'Active' },
+      { email: 'chris.martinez@email.com', plan: 'Basic Broadband', status: 'Cancelled' },
+      { email: 'jennifer.lopez@email.com', plan: 'Premium Fibernet', status: 'Active' },
+      { email: 'daniel.rodriguez@email.com', plan: 'Basic Fibernet', status: 'Active' },
+      { email: 'ashley.thompson@email.com', plan: 'Premium Broadband', status: 'Active' },
+      { email: 'matthew.white@email.com', plan: 'Basic Fibernet', status: 'Expired' },
+      { email: 'amanda.harris@email.com', plan: 'Premium Fibernet', status: 'Active' },
+      { email: 'joshua.clark@email.com', plan: 'Enterprise Fibernet', status: 'Active' },
+      { email: 'jessica.lewis@email.com', plan: 'Basic Broadband', status: 'Active' },
+      { email: 'andrew.walker@email.com', plan: 'Premium Fibernet', status: 'Active' }
+    ];
+    
+    for (const mapping of subscriptionMappings) {
+      await dbRun(`
+        INSERT INTO subscriptions (user_id, plan_id, status, start_date, end_date, auto_renew, data_used)
+        SELECT 
+          u.id,
+          p.id,
+          ?,
+          date('now', '-30 days'),
+          date('now', '+30 days'),
+          ?,
+          ?
+        FROM users u, subscription_plans p
+        WHERE u.email = ? AND p.name = ?
+      `, [
+        mapping.status,
+        Math.random() > 0.5 ? 1 : 0, // random auto_renew
+        Math.floor(Math.random() * 500) + 100, // random data_used
+        mapping.email,
+        mapping.plan
+      ]);
+    }
+    
+    // Create audit logs
+    console.log('📝 Creating audit logs...');
+    await dbRun(`
+      INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details)
+      SELECT 
+        s.user_id,
+        'create',
+        'subscription',
+        s.id,
+        'Subscription created with plan ' || p.name
+      FROM subscriptions s
+      JOIN subscription_plans p ON s.plan_id = p.id
+      LIMIT 10
+    `);
+    
+    console.log('✅ Seeding completed successfully!');
+    console.log('');
+    console.log('🔑 Test Credentials:');
+    console.log('   Admin: admin@subscription.com / admin123');
+    console.log('   Users: john.doe@email.com / password123 (and others)');
+    console.log('');
+    
+  } catch (error) {
+    console.error('❌ Error seeding database:', error);
+  } finally {
+    db.close((err) => {
+      if (err) {
+        console.error('Error closing database:', err);
+      } else {
+        console.log('🔒 Database connection closed');
+      }
+    });
+  }
+}
+
+// Run the seeding
+seedDatabase();

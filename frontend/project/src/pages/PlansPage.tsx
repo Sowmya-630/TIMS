@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useActivePlans } from '../hooks/usePlans';
+import { subscriptionService } from '../services/subscriptionService';
+import { SubscriptionPlan } from '../types';
 import { 
   Package, 
   Search, 
@@ -14,143 +17,62 @@ import {
   Users,
   Database,
   Clock,
-  Gift
+  Gift,
+  Loader
 } from 'lucide-react';
 
-interface Plan {
-  id: string;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  period: 'month' | 'year';
-  description: string;
-  features: string[];
-  category: 'basic' | 'pro' | 'enterprise';
-  popular: boolean;
-  discount?: number;
-  badge?: string;
-}
-
 const PlansPage: React.FC = () => {
-  const { user, addSubscription, subscriptions } = useAuth();
+  const { user, refreshSubscriptions, subscriptions } = useAuth();
   const { theme } = useTheme();
+  const { plans, loading, error } = useActivePlans();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [priceRange, setPriceRange] = useState<string>('all');
   const [showConfirmDialog, setShowConfirmDialog] = useState<string | null>(null);
+  const [subscribing, setSubscribing] = useState<string | null>(null);
 
-  const plans: Plan[] = [
-    {
-      id: 'starter',
-      name: 'Starter',
-      price: 9.99,
-      period: 'month',
-      description: 'Perfect for individuals getting started',
-      features: [
-        'Up to 5 projects',
-        '10GB storage',
-        'Basic analytics',
-        'Email support',
-        'Mobile app access'
-      ],
-      category: 'basic',
-      popular: false
-    },
-    {
-      id: 'pro',
-      name: 'Professional',
-      price: 19.99,
-      originalPrice: 29.99,
-      period: 'month',
-      description: 'Ideal for growing teams and businesses',
-      features: [
-        'Unlimited projects',
-        '100GB storage',
-        'Advanced analytics',
-        'Priority support',
-        'API access',
-        'Custom integrations',
-        'Team collaboration'
-      ],
-      category: 'pro',
-      popular: true,
-      discount: 33,
-      badge: 'Most Popular'
-    },
-    {
-      id: 'enterprise',
-      name: 'Enterprise',
-      price: 49.99,
-      period: 'month',
-      description: 'For large organizations with advanced needs',
-      features: [
-        'Everything in Pro',
-        'Unlimited storage',
-        'Custom features',
-        'Dedicated support',
-        'White-label solution',
-        'SLA guarantee',
-        'Advanced security',
-        'Custom onboarding'
-      ],
-      category: 'enterprise',
-      popular: false
-    },
-    {
-      id: 'premium',
-      name: 'Premium Plus',
-      price: 29.99,
-      period: 'month',
-      description: 'Enhanced features for power users',
-      features: [
-        'All Professional features',
-        '500GB storage',
-        'AI-powered insights',
-        'Advanced reporting',
-        '24/7 phone support',
-        'Custom branding'
-      ],
-      category: 'pro',
-      popular: false
-    },
-    {
-      id: 'basic',
-      name: 'Basic',
-      price: 4.99,
-      period: 'month',
-      description: 'Essential features for small projects',
-      features: [
-        'Up to 3 projects',
-        '5GB storage',
-        'Basic support',
-        'Standard features'
-      ],
-      category: 'basic',
-      popular: false
-    },
-    {
-      id: 'unlimited',
-      name: 'Unlimited',
-      price: 79.99,
-      period: 'month',
-      description: 'No limits, maximum performance',
-      features: [
-        'Unlimited everything',
-        'Priority processing',
-        'Dedicated account manager',
-        'Custom development',
-        'Premium support'
-      ],
-      category: 'enterprise',
-      popular: false
+  // Convert backend plans to display format
+  const getDisplayFeatures = (plan: SubscriptionPlan): string[] => {
+    const baseFeatures = [
+      `${plan.dataQuota}GB data quota`,
+      `${plan.durationDays} days duration`,
+      `${plan.productType} connection`,
+    ];
+    
+    // Add features based on plan type and price
+    if (plan.productType === 'Fibernet') {
+      baseFeatures.push('High-speed fiber connection', 'Low latency');
+      if (plan.price > 50) {
+        baseFeatures.push('Priority support', 'Advanced features');
+      }
+    } else {
+      baseFeatures.push('Reliable copper connection');
     }
-  ];
+    
+    if (plan.price > 30) {
+      baseFeatures.push('24/7 support');
+    } else {
+      baseFeatures.push('Email support');
+    }
+    
+    return baseFeatures;
+  };
+
+  const getPlanCategory = (plan: SubscriptionPlan): 'basic' | 'pro' | 'enterprise' => {
+    if (plan.price < 30) return 'basic';
+    if (plan.price < 70) return 'pro';
+    return 'enterprise';
+  };
+
+  const isPopular = (plan: SubscriptionPlan): boolean => {
+    // Mark Premium Fibernet as popular
+    return plan.name.toLowerCase().includes('premium');
+  };
 
   const categories = [
     { value: 'all', label: 'All Plans' },
-    { value: 'basic', label: 'Basic' },
-    { value: 'pro', label: 'Professional' },
-    { value: 'enterprise', label: 'Enterprise' }
+    { value: 'Fibernet', label: 'Fibernet' },
+    { value: 'Broadband Copper', label: 'Broadband' }
   ];
 
   const priceRanges = [
@@ -163,9 +85,9 @@ const PlansPage: React.FC = () => {
 
   const filteredPlans = plans.filter((plan) => {
     const matchesSearch = plan.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         plan.description.toLowerCase().includes(searchTerm.toLowerCase());
+                         (plan.description && plan.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesCategory = selectedCategory === 'all' || plan.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'all' || plan.productType === selectedCategory;
     
     const matchesPrice = priceRange === 'all' || (() => {
       const price = plan.price;
@@ -181,23 +103,33 @@ const PlansPage: React.FC = () => {
     return matchesSearch && matchesCategory && matchesPrice;
   });
 
-  const handleSubscribe = (plan: Plan) => {
-    const subscription = {
-      planId: plan.id,
-      planName: plan.name,
-      status: 'active' as const,
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      price: plan.price,
-      features: plan.features
-    };
+  const handleSubscribe = async (plan: SubscriptionPlan) => {
+    if (!user) return;
     
-    addSubscription(subscription);
-    setShowConfirmDialog(null);
+    try {
+      setSubscribing(plan.id);
+      const startDate = new Date().toISOString().split('T')[0];
+      const endDate = new Date(Date.now() + plan.durationDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      await subscriptionService.createSubscription({
+        planId: plan.id,
+        startDate,
+        endDate,
+        autoRenew: true
+      });
+      
+      await refreshSubscriptions();
+      setShowConfirmDialog(null);
+    } catch (error) {
+      console.error('Failed to subscribe:', error);
+      alert('Failed to subscribe to plan. Please try again.');
+    } finally {
+      setSubscribing(null);
+    }
   };
 
   const isSubscribed = (planId: string) => {
-    return subscriptions.some(sub => sub.planId === planId && sub.status === 'active');
+    return subscriptions.some(sub => sub.planId === planId && sub.status === 'Active');
   };
 
   const getPlanIcon = (category: string) => {
@@ -213,16 +145,14 @@ const PlansPage: React.FC = () => {
     }
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'basic':
-        return 'from-blue-500 to-blue-600';
-      case 'pro':
+  const getCategoryColor = (productType: string) => {
+    switch (productType) {
+      case 'Fibernet':
         return 'from-purple-500 to-purple-600';
-      case 'enterprise':
-        return 'from-gray-700 to-gray-800';
-      default:
+      case 'Broadband Copper':
         return 'from-blue-500 to-blue-600';
+      default:
+        return 'from-gray-500 to-gray-600';
     }
   };
 
@@ -305,113 +235,135 @@ const PlansPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="flex justify-center items-center py-12">
+            <Loader className="w-8 h-8 animate-spin text-blue-500" />
+            <span className="ml-2">Loading plans...</span>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-12">
+            <div className="text-red-500 mb-4">
+              <Package className="w-16 h-16 mx-auto mb-2" />
+              <p>Failed to load plans: {error}</p>
+            </div>
+          </div>
+        )}
+
         {/* Plans Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredPlans.map((plan) => (
-            <div
-              key={plan.id}
-              className={`relative p-8 rounded-xl transition-all duration-200 hover:scale-105 ${
-                plan.popular
-                  ? 'ring-2 ring-purple-500 scale-105'
-                  : ''
-              } ${
-                theme === 'dark'
-                  ? 'bg-gray-800 hover:bg-gray-750'
-                  : 'bg-white hover:shadow-lg'
-              } shadow-sm`}
-            >
-              {/* Badge */}
-              {plan.badge && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-1 rounded-full text-sm font-medium">
-                    {plan.badge}
-                  </span>
-                </div>
-              )}
-
-              {/* Discount Badge */}
-              {plan.discount && (
-                <div className="absolute -top-2 -right-2">
-                  <div className="bg-red-500 text-white w-12 h-12 rounded-full flex items-center justify-center transform rotate-12">
-                    <span className="text-xs font-bold">-{plan.discount}%</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Plan Header */}
-              <div className="text-center mb-8">
-                <div className={`inline-flex p-3 rounded-xl bg-gradient-to-r ${getCategoryColor(plan.category)} text-white mb-4`}>
-                  {getPlanIcon(plan.category)}
-                </div>
-                <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
-                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {plan.description}
-                </p>
-              </div>
-
-              {/* Pricing */}
-              <div className="text-center mb-8">
-                <div className="flex items-baseline justify-center">
-                  {plan.originalPrice && (
-                    <span className={`text-lg line-through mr-2 ${
-                      theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
-                    }`}>
-                      ${plan.originalPrice}
-                    </span>
-                  )}
-                  <span className="text-4xl font-bold">${plan.price}</span>
-                  <span className={`text-base font-normal ml-1 ${
-                    theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                    /{plan.period}
-                  </span>
-                </div>
-                {plan.discount && (
-                  <div className="flex items-center justify-center mt-2">
-                    <Gift className="w-4 h-4 text-green-500 mr-1" />
-                    <span className="text-green-500 font-medium">
-                      Save ${(plan.originalPrice! - plan.price).toFixed(2)}/month
+        {!loading && !error && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredPlans.map((plan) => {
+              const category = getPlanCategory(plan);
+              const popular = isPopular(plan);
+              const features = getDisplayFeatures(plan);
+              
+              return (
+              <div
+                key={plan.id}
+                className={`relative p-8 rounded-xl transition-all duration-200 hover:scale-105 ${
+                  popular
+                    ? 'ring-2 ring-purple-500 scale-105'
+                    : ''
+                } ${
+                  theme === 'dark'
+                    ? 'bg-gray-800 hover:bg-gray-750'
+                    : 'bg-white hover:shadow-lg'
+                } shadow-sm`}
+              >
+                {/* Badge */}
+                {popular && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-1 rounded-full text-sm font-medium">
+                      Most Popular
                     </span>
                   </div>
                 )}
-              </div>
 
-              {/* Features */}
-              <ul className="space-y-3 mb-8">
-                {plan.features.map((feature, index) => (
-                  <li key={index} className="flex items-start">
-                    <CheckCircle className="w-5 h-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
-                    <span className={`text-sm ${
-                      theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                {/* Plan Header */}
+                <div className="text-center mb-8">
+                  <div className={`inline-flex p-3 rounded-xl bg-gradient-to-r ${getCategoryColor(plan.productType)} text-white mb-4`}>
+                    {getPlanIcon(category)}
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
+                  <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {plan.description || `${plan.productType} plan with ${plan.dataQuota}GB data`}
+                  </p>
+                </div>
+
+                {/* Pricing */}
+                <div className="text-center mb-8">
+                  <div className="flex items-baseline justify-center">
+                    <span className="text-4xl font-bold">${plan.price}</span>
+                    <span className={`text-base font-normal ml-1 ${
+                      theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
                     }`}>
-                      {feature}
+                      /month
                     </span>
-                  </li>
-                ))}
-              </ul>
+                  </div>
+                  <div className="mt-2">
+                    <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {plan.durationDays} days duration
+                    </span>
+                  </div>
+                </div>
 
-              {/* Action Button */}
-              <button
-                onClick={() => setShowConfirmDialog(plan.id)}
-                disabled={isSubscribed(plan.id)}
-                className={`w-full py-3 px-4 rounded-lg font-semibold transition-all duration-200 ${
-                  isSubscribed(plan.id)
-                    ? `${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'} cursor-not-allowed`
-                    : plan.popular
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
-                    : theme === 'dark'
-                    ? 'bg-gray-700 text-white hover:bg-gray-600'
-                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                }`}
-              >
-                {isSubscribed(plan.id) ? 'Currently Subscribed' : 'Choose Plan'}
-              </button>
-            </div>
-          ))}
-        </div>
+                {/* Features */}
+                <ul className="space-y-3 mb-8">
+                  {features.map((feature, index) => (
+                    <li key={index} className="flex items-start">
+                      <CheckCircle className="w-5 h-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
+                      <span className={`text-sm ${
+                        theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                      }`}>
+                        {feature}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Action Button */}
+                <button
+                  onClick={() => setShowConfirmDialog(plan.id)}
+                  disabled={isSubscribed(plan.id) || subscribing === plan.id || !user}
+                  className={`w-full py-3 px-4 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center ${
+                    isSubscribed(plan.id)
+                      ? `${theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'} cursor-not-allowed`
+                      : subscribing === plan.id
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : !user
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : popular
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                      : theme === 'dark'
+                      ? 'bg-gray-700 text-white hover:bg-gray-600'
+                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                  }`}
+                >
+                  {subscribing === plan.id ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin mr-2" />
+                      Subscribing...
+                    </>
+                  ) : isSubscribed(plan.id) ? (
+                    'Currently Subscribed'
+                  ) : !user ? (
+                    'Login to Subscribe'
+                  ) : (
+                    'Choose Plan'
+                  )}
+                </button>
+              </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* No Results */}
-        {filteredPlans.length === 0 && (
+        {!loading && !error && filteredPlans.length === 0 && (
           <div className="text-center py-12">
             <Package className={`w-16 h-16 mx-auto mb-4 ${
               theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
@@ -489,14 +441,25 @@ const PlansPage: React.FC = () => {
               <span className="font-semibold">
                 {plans.find(p => p.id === showConfirmDialog)?.name}
               </span>{' '}
-              plan?
+              plan for ${plans.find(p => p.id === showConfirmDialog)?.price}/month?
             </p>
             <div className="flex space-x-3">
               <button
-                onClick={() => handleSubscribe(plans.find(p => p.id === showConfirmDialog)!)}
-                className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
+                onClick={() => {
+                  const plan = plans.find(p => p.id === showConfirmDialog);
+                  if (plan) handleSubscribe(plan);
+                }}
+                disabled={subscribing === showConfirmDialog}
+                className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-400 flex items-center justify-center"
               >
-                Confirm
+                {subscribing === showConfirmDialog ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin mr-2" />
+                    Subscribing...
+                  </>
+                ) : (
+                  'Confirm'
+                )}
               </button>
               <button
                 onClick={() => setShowConfirmDialog(null)}

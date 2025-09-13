@@ -1,13 +1,17 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { authService } from '../services/authService';
+import { subscriptionService } from '../services/subscriptionService';
+import { User, Subscription, LoginRequest, RegisterRequest } from '../types';
 
-export interface User {
+// Legacy interface for backward compatibility
+export interface LegacyUser {
   id: string;
   email: string;
   fullName: string;
   role: 'user' | 'admin';
 }
 
-export interface Subscription {
+export interface LegacySubscription {
   id: string;
   planId: string;
   planName: string;
@@ -21,13 +25,13 @@ export interface Subscription {
 interface AuthContextType {
   user: User | null;
   subscriptions: Subscription[];
+  loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, password: string, fullName: string, role: 'user' | 'admin') => Promise<boolean>;
+  signup: (email: string, password: string, fullName: string, role?: 'Admin' | 'EndUser') => Promise<boolean>;
   logout: () => void;
-  updateProfile: (updates: Partial<User>) => void;
-  addSubscription: (subscription: Omit<Subscription, 'id'>) => void;
-  updateSubscription: (id: string, updates: Partial<Subscription>) => void;
-  cancelSubscription: (id: string) => void;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
+  refreshSubscriptions: () => Promise<void>;
+  cancelSubscription: (id: string, reason?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,122 +51,107 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    const savedSubscriptions = localStorage.getItem('subscriptions');
-    
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    
-    if (savedSubscriptions) {
-      setSubscriptions(JSON.parse(savedSubscriptions));
-    }
+    initializeAuth();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const mockUser: User = {
-      id: '1',
-      email,
-      fullName: email === 'admin@example.com' ? 'Admin User' : 'John Doe',
-      role: email === 'admin@example.com' ? 'admin' : 'user',
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-    
-    // Load mock subscriptions for user
-    if (mockUser.role === 'user') {
-      const mockSubscriptions: Subscription[] = [
-        {
-          id: '1',
-          planId: 'basic',
-          planName: 'Basic Plan',
-          status: 'active',
-          startDate: '2024-01-15',
-          endDate: '2024-02-15',
-          price: 9.99,
-          features: ['Feature 1', 'Feature 2']
-        }
-      ];
-      setSubscriptions(mockSubscriptions);
-      localStorage.setItem('subscriptions', JSON.stringify(mockSubscriptions));
+  const initializeAuth = async () => {
+    try {
+      if (authService.isAuthenticated()) {
+        const userData = await authService.getProfile();
+        setUser(userData);
+        await loadUserSubscriptions(userData.id);
+      }
+    } catch (error) {
+      console.error('Failed to initialize auth:', error);
+      authService.logout();
+    } finally {
+      setLoading(false);
     }
-    
-    return true;
   };
 
-  const signup = async (email: string, password: string, fullName: string, role: 'user' | 'admin'): Promise<boolean> => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newUser: User = {
-      id: Date.now().toString(),
-      email,
-      fullName,
-      role,
-    };
-    
-    setUser(newUser);
-    localStorage.setItem('user', JSON.stringify(newUser));
-    
-    return true;
+  const loadUserSubscriptions = async (userId: string) => {
+    try {
+      const userSubscriptions = await subscriptionService.getUserSubscriptions(userId);
+      setSubscriptions(userSubscriptions);
+    } catch (error) {
+      console.error('Failed to load subscriptions:', error);
+    }
+  };
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      setLoading(true);
+      const response = await authService.login({ email, password });
+      setUser(response.user);
+      await loadUserSubscriptions(response.user.id);
+      return true;
+    } catch (error) {
+      console.error('Login failed:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signup = async (email: string, password: string, fullName: string, role: 'Admin' | 'EndUser' = 'EndUser'): Promise<boolean> => {
+    try {
+      setLoading(true);
+      const response = await authService.register({ email, password, fullName, role });
+      setUser(response.user);
+      await loadUserSubscriptions(response.user.id);
+      return true;
+    } catch (error) {
+      console.error('Signup failed:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
+    authService.logout();
     setUser(null);
     setSubscriptions([]);
-    localStorage.removeItem('user');
-    localStorage.removeItem('subscriptions');
   };
 
-  const updateProfile = (updates: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...updates };
+  const updateProfile = async (updates: Partial<User>) => {
+    try {
+      const updatedUser = await authService.updateProfile(updates);
       setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      throw error;
     }
   };
 
-  const addSubscription = (subscription: Omit<Subscription, 'id'>) => {
-    const newSubscription: Subscription = {
-      ...subscription,
-      id: Date.now().toString(),
-    };
-    const updated = [...subscriptions, newSubscription];
-    setSubscriptions(updated);
-    localStorage.setItem('subscriptions', JSON.stringify(updated));
+  const refreshSubscriptions = async () => {
+    if (user) {
+      await loadUserSubscriptions(user.id);
+    }
   };
 
-  const updateSubscription = (id: string, updates: Partial<Subscription>) => {
-    const updated = subscriptions.map(sub =>
-      sub.id === id ? { ...sub, ...updates } : sub
-    );
-    setSubscriptions(updated);
-    localStorage.setItem('subscriptions', JSON.stringify(updated));
-  };
-
-  const cancelSubscription = (id: string) => {
-    const updated = subscriptions.map(sub =>
-      sub.id === id ? { ...sub, status: 'cancelled' as const } : sub
-    );
-    setSubscriptions(updated);
-    localStorage.setItem('subscriptions', JSON.stringify(updated));
+  const cancelSubscription = async (id: string, reason?: string) => {
+    try {
+      await subscriptionService.cancelSubscription(id, reason);
+      await refreshSubscriptions();
+    } catch (error) {
+      console.error('Failed to cancel subscription:', error);
+      throw error;
+    }
   };
 
   const value: AuthContextType = {
     user,
     subscriptions,
+    loading,
     login,
     signup,
     logout,
     updateProfile,
-    addSubscription,
-    updateSubscription,
+    refreshSubscriptions,
     cancelSubscription,
   };
 

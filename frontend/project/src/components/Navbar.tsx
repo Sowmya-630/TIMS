@@ -37,7 +37,7 @@ const Navbar: React.FC = () => {
     { path: '/subscriptions', label: 'My Subscriptions', icon: CreditCard },
   ];
 
-  if (user?.role === 'admin') {
+  if (user?.role === 'Admin') {
     navItems.push({ path: '/admin', label: 'Admin', icon: Shield });
   }
 
