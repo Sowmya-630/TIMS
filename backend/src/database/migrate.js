@@ -24,7 +24,7 @@ const createTables = async () => {
         full_name TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'Staff',
+        role TEXT NOT NULL DEFAULT 'EndUser',
         created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
         updated_at TEXT DEFAULT (CURRENT_TIMESTAMP)
       )
@@ -181,6 +181,166 @@ const createTables = async () => {
         created_at TEXT DEFAULT (CURRENT_TIMESTAMP)
       )
     `);
+
+    // Create subscription_plans table
+    await executeQuery(`
+      CREATE TABLE IF NOT EXISTS subscription_plans (
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        name TEXT NOT NULL,
+        description TEXT,
+        product_type TEXT NOT NULL,
+        price REAL NOT NULL,
+        data_quota INTEGER NOT NULL,
+        duration_days INTEGER NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+        updated_at TEXT DEFAULT (CURRENT_TIMESTAMP)
+      )
+    `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscription_plans_name ON subscription_plans(name)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscription_plans_product_type ON subscription_plans(product_type)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscription_plans_is_active ON subscription_plans(is_active)`);
+
+    // Create discounts table
+    await executeQuery(`
+      CREATE TABLE IF NOT EXISTS discounts (
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        name TEXT NOT NULL,
+        description TEXT,
+        discount_percent REAL NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        plan_id TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+        updated_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+        FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE
+      )
+    `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_discounts_name ON discounts(name)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_discounts_is_active ON discounts(is_active)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_discounts_plan_id ON discounts(plan_id)`);
+
+    // Create subscriptions table
+    await executeQuery(`
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        user_id TEXT NOT NULL,
+        plan_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'Active',
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        auto_renew INTEGER DEFAULT 0,
+        data_used INTEGER DEFAULT 0,
+        discount_id TEXT,
+        created_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+        updated_at TEXT DEFAULT (CURRENT_TIMESTAMP),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (plan_id) REFERENCES subscription_plans(id) ON DELETE CASCADE,
+        FOREIGN KEY (discount_id) REFERENCES discounts(id) ON DELETE SET NULL
+      )
+    `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscriptions_plan_id ON subscriptions(plan_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscriptions_end_date ON subscriptions(end_date)`);
+
+    // Create subscription_usage table
+    await executeQuery(`
+      CREATE TABLE IF NOT EXISTS subscription_usage (
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        subscription_id TEXT NOT NULL,
+        data_used INTEGER NOT NULL,
+        usage_date TEXT DEFAULT (CURRENT_TIMESTAMP),
+        FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE
+      )
+    `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscription_usage_subscription_id ON subscription_usage(subscription_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscription_usage_usage_date ON subscription_usage(usage_date)`);
+
+    // Create subscription_audit table
+    await executeQuery(`
+      CREATE TABLE IF NOT EXISTS subscription_audit (
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        subscription_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        details TEXT,
+        timestamp TEXT DEFAULT (CURRENT_TIMESTAMP),
+        FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscription_audit_subscription_id ON subscription_audit(subscription_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscription_audit_user_id ON subscription_audit(user_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscription_audit_action ON subscription_audit(action)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_subscription_audit_timestamp ON subscription_audit(timestamp)`);
+
+    // Create audit_logs table
+    await executeQuery(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY DEFAULT (
+          lower(
+            hex(randomblob(4)) || '-' ||
+            hex(randomblob(2)) || '-' ||
+            '4' || substr(hex(randomblob(2)),2) || '-' ||
+            substr('89ab', abs(random()) % 4 + 1, 1) || substr(hex(randomblob(2)),2) || '-' ||
+            hex(randomblob(6))
+          )
+        ),
+        user_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        details TEXT,
+        timestamp TEXT DEFAULT (CURRENT_TIMESTAMP),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_type ON audit_logs(entity_type)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_id ON audit_logs(entity_id)`);
+    await executeQuery(`CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp)`);
 
     logger.info('✅ Database tables created successfully');
     console.log('✅ Database migration completed successfully');

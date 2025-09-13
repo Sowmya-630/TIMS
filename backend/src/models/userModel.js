@@ -13,7 +13,7 @@ export class User {
 
   // Create a new user
   static async create(userData) {
-    const { fullName, email, password, role } = userData;
+    const { fullName, email, password, role = 'EndUser' } = userData;
     const hashedPassword = await hashPassword(password);
     
     const query = `
@@ -127,6 +127,12 @@ export class User {
     const query = 'SELECT * FROM users WHERE role = ? ORDER BY created_at DESC';
     const users = await executeQuery(query, [role]);
     return users.map(user => new User(user));
+  }
+
+  // Get user subscriptions
+  async getSubscriptions(status = null) {
+    const { Subscription } = await import('./subscriptionModel.js');
+    return await Subscription.findByUserId(this.id, status);
   }
 
   // Convert to JSON (exclude sensitive data)
