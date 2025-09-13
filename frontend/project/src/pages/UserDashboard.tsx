@@ -2,135 +2,105 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Link } from 'react-router-dom';
-import { 
-  CreditCard, 
-  TrendingUp, 
-  Calendar, 
-  Bell,
+import { planService } from '../services/planService';
+import { discountService } from '../services/discountService';
+import { SubscriptionPlan, Discount } from '../types';
+import {
+  CreditCard,
   Package,
   ArrowRight,
   CheckCircle,
   AlertCircle,
   XCircle,
-  Star,
-  Zap,
-  Gift,
   Eye,
-  BarChart3
+  BarChart3,
+  Loader,
+  Gift
 } from 'lucide-react';
 
-interface Recommendation {
-  id: string;
-  planName: string;
-  reason: string;
-  savings: number;
-  confidence: number;
-}
-
-interface Notification {
-  id: string;
-  type: 'info' | 'warning' | 'success';
-  title: string;
-  message: string;
-  date: string;
-}
-
 const UserDashboard: React.FC = () => {
-  const { user, subscriptions } = useAuth();
+  const { user, subscriptions, loading: authLoading } = useAuth();
   const { theme } = useTheme();
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [activePlans, setActivePlans] = useState<SubscriptionPlan[]>([]);
+  const [activeDiscounts, setActiveDiscounts] = useState<Discount[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock AI recommendations
-    setRecommendations([
-      {
-        id: '1',
-        planName: 'Pro Plan',
-        reason: 'Based on your usage patterns, upgrading could save you 20%',
-        savings: 24.99,
-        confidence: 85
-      },
-      {
-        id: '2',
-        planName: 'Enterprise Plan',
-        reason: 'You\'re using advanced features frequently',
-        savings: 49.99,
-        confidence: 78
-      }
-    ]);
-
-    // Mock notifications
-    setNotifications([
-      {
-        id: '1',
-        type: 'info',
-        title: 'New Plan Available',
-        message: 'Check out our new Premium features',
-        date: '2024-01-15'
-      },
-      {
-        id: '2',
-        type: 'warning',
-        title: 'Subscription Expiring Soon',
-        message: 'Your Basic Plan expires in 5 days',
-        date: '2024-01-14'
-      },
-      {
-        id: '3',
-        type: 'success',
-        title: 'Payment Successful',
-        message: 'Your monthly payment has been processed',
-        date: '2024-01-13'
-      }
-    ]);
+    loadDashboardData();
   }, []);
 
-  const activeSubscriptions = subscriptions.filter(sub => sub.status === 'active');
-  const totalSpending = subscriptions.reduce((sum, sub) => sum + sub.price, 0);
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [plans, discounts] = await Promise.all([
+        planService.getActivePlans(),
+        discountService.getActiveDiscounts()
+      ]);
+      setActivePlans(plans);
+      setActiveDiscounts(discounts);
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const activeSubscriptions = subscriptions.filter(sub => sub.status === 'Active');
+  const cancelledSubscriptions = subscriptions.filter(sub => sub.status === 'Cancelled');
+  const expiredSubscriptions = subscriptions.filter(sub => sub.status === 'Expired');
+
+  // Calculate total spending from active subscriptions
+  const totalSpending = activeSubscriptions.reduce((sum, sub) => {
+    const plan = sub.plan;
+    return sum + (plan ? plan.price : 0);
+  }, 0);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'active':
+      case 'Active':
         return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'cancelled':
+      case 'Cancelled':
         return <XCircle className="w-5 h-5 text-red-500" />;
-      case 'expired':
+      case 'Expired':
         return <AlertCircle className="w-5 h-5 text-yellow-500" />;
       default:
         return <AlertCircle className="w-5 h-5 text-gray-500" />;
     }
   };
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'success':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'warning':
-        return <AlertCircle className="w-5 h-5 text-yellow-500" />;
-      default:
-        return <Bell className="w-5 h-5 text-blue-500" />;
-    }
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
   };
 
+  const getDataUsagePercentage = (used: number, quota: number) => {
+    return Math.min((used / (quota * 1024)) * 100, 100); // Convert GB to MB
+  };
+
+  if (authLoading || loading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
+        <Loader className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${
-      theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
-    }`}>
+    <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
+      }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.fullName}!</h1>
           <p className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
-            Here's your subscription overview and personalized recommendations.
+            Here's your subscription overview and available plans.
           </p>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className={`p-6 rounded-xl ${
-            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-          } shadow-sm`}>
+          <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+            } shadow-sm`}>
             <div className="flex items-center justify-between mb-4">
               <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
                 <Package className="w-5 h-5 text-blue-600" />
@@ -143,9 +113,8 @@ const UserDashboard: React.FC = () => {
             </p>
           </div>
 
-          <div className={`p-6 rounded-xl ${
-            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-          } shadow-sm`}>
+          <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+            } shadow-sm`}>
             <div className="flex items-center justify-between mb-4">
               <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
                 <CreditCard className="w-5 h-5 text-green-600" />
@@ -158,33 +127,31 @@ const UserDashboard: React.FC = () => {
             </p>
           </div>
 
-          <div className={`p-6 rounded-xl ${
-            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-          } shadow-sm`}>
+          <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+            } shadow-sm`}>
             <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                <XCircle className="w-5 h-5 text-red-600" />
               </div>
-              <span className="text-2xl font-bold">$24.99</span>
+              <span className="text-2xl font-bold">{cancelledSubscriptions.length}</span>
             </div>
-            <h3 className="font-semibold mb-1">Potential Savings</h3>
+            <h3 className="font-semibold mb-1">Cancelled</h3>
             <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              With AI recommendations
+              Cancelled subscriptions
             </p>
           </div>
 
-          <div className={`p-6 rounded-xl ${
-            theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-          } shadow-sm`}>
+          <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+            } shadow-sm`}>
             <div className="flex items-center justify-between mb-4">
               <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
-                <Bell className="w-5 h-5 text-yellow-600" />
+                <AlertCircle className="w-5 h-5 text-yellow-600" />
               </div>
-              <span className="text-2xl font-bold">{notifications.length}</span>
+              <span className="text-2xl font-bold">{expiredSubscriptions.length}</span>
             </div>
-            <h3 className="font-semibold mb-1">New Notifications</h3>
+            <h3 className="font-semibold mb-1">Expired</h3>
             <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-              Require attention
+              Expired subscriptions
             </p>
           </div>
         </div>
@@ -193,49 +160,57 @@ const UserDashboard: React.FC = () => {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Active Subscriptions */}
-            <div className={`p-6 rounded-xl ${
-              theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-            } shadow-sm`}>
-              <div className="flex items-center justify-between mb-6">
+            <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+              } shadow-sm`}>
+              <div className="mb-6">
                 <h2 className="text-xl font-bold">My Active Subscriptions</h2>
-                <Link
-                  to="/subscriptions"
-                  className="text-blue-500 hover:text-blue-600 flex items-center space-x-1 transition-colors"
-                >
-                  <span>View All</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
               </div>
-              
+
               <div className="space-y-4">
                 {activeSubscriptions.slice(0, 3).map((subscription) => (
                   <div
                     key={subscription.id}
-                    className={`p-4 rounded-lg border ${
-                      theme === 'dark' 
-                        ? 'border-gray-700 bg-gray-750' 
-                        : 'border-gray-200 bg-gray-50'
-                    }`}
+                    className={`p-4 rounded-lg border ${theme === 'dark'
+                      ? 'border-gray-700 bg-gray-750'
+                      : 'border-gray-200 bg-gray-50'
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         {getStatusIcon(subscription.status)}
                         <div>
-                          <h3 className="font-semibold">{subscription.planName}</h3>
-                          <p className={`text-sm ${
-                            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
-                            Next billing: {subscription.endDate}
+                          <h3 className="font-semibold">{subscription.plan?.name || 'Unknown Plan'}</h3>
+                          <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
+                            Expires: {formatDate(subscription.endDate)}
                           </p>
+                          {subscription.plan && (
+                            <p className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
+                              }`}>
+                              {subscription.dataUsed}MB / {subscription.plan.dataQuota}GB used
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold">${subscription.price}/month</p>
-                        <p className={`text-sm ${
-                          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <p className="font-bold">${subscription.plan?.price || 0}/month</p>
+                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                           {subscription.status}
                         </p>
+                        {subscription.plan && (
+                          <div className="mt-1">
+                            <div className={`w-20 h-2 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                              }`}>
+                              <div
+                                className="h-2 bg-blue-500 rounded-full"
+                                style={{
+                                  width: `${getDataUsagePercentage(subscription.dataUsed, subscription.plan.dataQuota)}%`
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -244,9 +219,8 @@ const UserDashboard: React.FC = () => {
 
               {activeSubscriptions.length === 0 && (
                 <div className="text-center py-8">
-                  <Package className={`w-12 h-12 mx-auto mb-4 ${
-                    theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
-                  }`} />
+                  <Package className={`w-12 h-12 mx-auto mb-4 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'
+                    }`} />
                   <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
                     No active subscriptions yet
                   </p>
@@ -261,48 +235,47 @@ const UserDashboard: React.FC = () => {
               )}
             </div>
 
-            {/* AI Recommendations */}
-            <div className={`p-6 rounded-xl ${
-              theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-            } shadow-sm`}>
-              <div className="flex items-center space-x-2 mb-6">
-                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-white" />
-                </div>
-                <h2 className="text-xl font-bold">AI Recommendations</h2>
+            {/* Available Plans */}
+            <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+              } shadow-sm`}>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">Available Plans</h2>
+                <Link
+                  to="/plans"
+                  className="text-blue-500 hover:text-blue-600 flex items-center space-x-1 transition-colors"
+                >
+                  <span>View All</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
               </div>
-              
-              <div className="space-y-4">
-                {recommendations.map((rec) => (
+
+              <div className="grid md:grid-cols-2 gap-4">
+                {activePlans.slice(0, 4).map((plan) => (
                   <div
-                    key={rec.id}
-                    className={`p-4 rounded-lg border-2 border-dashed ${
-                      theme === 'dark' 
-                        ? 'border-purple-500/30 bg-purple-900/10' 
-                        : 'border-purple-200 bg-purple-50'
-                    }`}
+                    key={plan.id}
+                    className={`p-4 rounded-lg border ${theme === 'dark'
+                      ? 'border-gray-700 bg-gray-750'
+                      : 'border-gray-200 bg-gray-50'
+                      }`}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-semibold">{rec.planName}</h3>
-                          <div className="flex items-center space-x-1">
-                            <Star className="w-4 h-4 text-yellow-500" />
-                            <span className="text-sm">{rec.confidence}%</span>
-                          </div>
-                        </div>
-                        <p className={`text-sm mb-2 ${
-                          theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-semibold">{plan.name}</h3>
+                      <span className="text-lg font-bold">${plan.price}</span>
+                    </div>
+                    <p className={`text-sm mb-3 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                      {plan.description}
+                    </p>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className={theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}>
+                        {plan.dataQuota}GB • {plan.durationDays} days
+                      </span>
+                      <span className={`px-2 py-1 rounded text-xs ${plan.productType === 'Fibernet'
+                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
+                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
                         }`}>
-                          {rec.reason}
-                        </p>
-                        <p className="text-green-600 font-semibold">
-                          Save ${rec.savings}/month
-                        </p>
-                      </div>
-                      <button className="ml-4 bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors">
-                        View Plan
-                      </button>
+                        {plan.productType}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -313,95 +286,108 @@ const UserDashboard: React.FC = () => {
           {/* Sidebar */}
           <div className="space-y-8">
             {/* Quick Actions */}
-            <div className={`p-6 rounded-xl ${
-              theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-            } shadow-sm`}>
+            <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+              } shadow-sm`}>
               <h3 className="text-lg font-bold mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <Link
                   to="/plans"
-                  className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${
-                    theme === 'dark' 
-                      ? 'hover:bg-gray-700' 
-                      : 'hover:bg-gray-100'
-                  }`}
+                  className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${theme === 'dark'
+                    ? 'hover:bg-gray-700'
+                    : 'hover:bg-gray-100'
+                    }`}
                 >
                   <Package className="w-5 h-5 text-blue-500" />
                   <span>Browse Plans</span>
                 </Link>
                 <Link
                   to="/subscriptions"
-                  className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${
-                    theme === 'dark' 
-                      ? 'hover:bg-gray-700' 
-                      : 'hover:bg-gray-100'
-                  }`}
+                  className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${theme === 'dark'
+                    ? 'hover:bg-gray-700'
+                    : 'hover:bg-gray-100'
+                    }`}
                 >
                   <Eye className="w-5 h-5 text-green-500" />
                   <span>Manage Subscriptions</span>
                 </Link>
                 <Link
                   to="/profile"
-                  className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${
-                    theme === 'dark' 
-                      ? 'hover:bg-gray-700' 
-                      : 'hover:bg-gray-100'
-                  }`}
+                  className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${theme === 'dark'
+                    ? 'hover:bg-gray-700'
+                    : 'hover:bg-gray-100'
+                    }`}
                 >
                   <BarChart3 className="w-5 h-5 text-purple-500" />
-                  <span>View Analytics</span>
+                  <span>View Profile</span>
                 </Link>
               </div>
             </div>
 
-            {/* Recent Notifications */}
-            <div className={`p-6 rounded-xl ${
-              theme === 'dark' ? 'bg-gray-800' : 'bg-white'
-            } shadow-sm`}>
-              <h3 className="text-lg font-bold mb-4">Recent Notifications</h3>
-              <div className="space-y-3">
-                {notifications.slice(0, 3).map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-3 rounded-lg border ${
-                      theme === 'dark' 
-                        ? 'border-gray-700' 
-                        : 'border-gray-200'
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      {getNotificationIcon(notification.type)}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm">{notification.title}</h4>
-                        <p className={`text-xs mt-1 ${
-                          theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
-                          {notification.message}
-                        </p>
-                        <p className={`text-xs mt-1 ${
-                          theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
-                        }`}>
-                          {notification.date}
-                        </p>
+            {/* Active Discounts */}
+            {activeDiscounts.length > 0 && (
+              <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+                } shadow-sm`}>
+                <h3 className="text-lg font-bold mb-4">Active Discounts</h3>
+                <div className="space-y-3">
+                  {activeDiscounts.slice(0, 3).map((discount) => (
+                    <div
+                      key={discount.id}
+                      className={`p-3 rounded-lg border ${theme === 'dark'
+                        ? 'border-green-700 bg-green-900/10'
+                        : 'border-green-200 bg-green-50'
+                        }`}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <Gift className="w-5 h-5 text-green-500 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm">{discount.name}</h4>
+                          <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
+                            {discount.description}
+                          </p>
+                          <p className="text-xs mt-1 text-green-600 font-semibold">
+                            {discount.discountPercent}% OFF
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Promotional Offer */}
-            <div className={`p-6 rounded-xl bg-gradient-to-br from-orange-500 to-pink-500 text-white`}>
-              <div className="flex items-center space-x-2 mb-3">
-                <Gift className="w-6 h-6" />
-                <h3 className="text-lg font-bold">Special Offer!</h3>
+            {/* Account Summary */}
+            <div className={`p-6 rounded-xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+              } shadow-sm`}>
+              <h3 className="text-lg font-bold mb-4">Account Summary</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                    Total Subscriptions
+                  </span>
+                  <span className="font-semibold">{subscriptions.length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                    Active Plans
+                  </span>
+                  <span className="font-semibold text-green-600">{activeSubscriptions.length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                    Monthly Cost
+                  </span>
+                  <span className="font-semibold">${totalSpending.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+                    Member Since
+                  </span>
+                  <span className="font-semibold">
+                    {user?.createdAt ? formatDate(user.createdAt) : 'Unknown'}
+                  </span>
+                </div>
               </div>
-              <p className="text-sm mb-4 text-orange-100">
-                Upgrade to Pro and get 30% off your first 3 months. Limited time offer!
-              </p>
-              <button className="w-full bg-white text-orange-600 py-2 px-4 rounded-lg font-semibold hover:bg-orange-50 transition-colors">
-                Claim Offer
-              </button>
             </div>
           </div>
         </div>

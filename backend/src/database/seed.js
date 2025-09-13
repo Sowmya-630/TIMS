@@ -31,7 +31,8 @@ const sampleUsers = [
   { fullName: 'Amanda Harris', email: 'amanda.harris@email.com', password: 'password123', role: 'EndUser' },
   { fullName: 'Joshua Clark', email: 'joshua.clark@email.com', password: 'password123', role: 'EndUser' },
   { fullName: 'Jessica Lewis', email: 'jessica.lewis@email.com', password: 'password123', role: 'EndUser' },
-  { fullName: 'Andrew Walker', email: 'andrew.walker@email.com', password: 'password123', role: 'EndUser' }
+  { fullName: 'Andrew Walker', email: 'andrew.walker@email.com', password: 'password123', role: 'EndUser' },
+  { fullName: 'Guna Kumar', email: 'guna@email.com', password: 'password123', role: 'EndUser' }
 ];
 
 const clearDataQuery = `
@@ -50,7 +51,8 @@ INSERT INTO subscription_plans (name, description, product_type, price, data_quo
 ('Premium Fibernet', 'High-speed fiber internet plan', 'Fibernet', 49.99, 500, 30),
 ('Enterprise Fibernet', 'Business grade fiber internet', 'Fibernet', 99.99, 1000, 30),
 ('Basic Broadband', 'Standard copper broadband', 'Broadband Copper', 19.99, 50, 30),
-('Premium Broadband', 'Enhanced copper broadband', 'Broadband Copper', 34.99, 200, 30);
+('Premium Broadband', 'Enhanced copper broadband', 'Broadband Copper', 34.99, 200, 30),
+('Luxury Fibernet', 'Ultra-premium fiber internet with unlimited data', 'Fibernet', 500.00, 5000, 30);
 
 -- Sample discounts
 INSERT INTO discounts (name, description, discount_percent, start_date, end_date) VALUES
@@ -123,7 +125,8 @@ async function seedDatabase() {
       { email: 'amanda.harris@email.com', plan: 'Premium Fibernet', status: 'Active' },
       { email: 'joshua.clark@email.com', plan: 'Enterprise Fibernet', status: 'Active' },
       { email: 'jessica.lewis@email.com', plan: 'Basic Broadband', status: 'Active' },
-      { email: 'andrew.walker@email.com', plan: 'Premium Fibernet', status: 'Active' }
+      { email: 'andrew.walker@email.com', plan: 'Premium Fibernet', status: 'Active' },
+      { email: 'guna@email.com', plan: 'Luxury Fibernet', status: 'Active' }
     ];
     
     for (const mapping of subscriptionMappings) {

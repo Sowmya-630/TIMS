@@ -185,7 +185,12 @@ export const getUserSubscriptions = async (req, res) => {
     const status = req.query.status || null;
     const subscriptions = await user.getSubscriptions(status);
     
-    res.json(subscriptions.map(sub => sub.toJSON()));
+    // Get subscriptions with plan details
+    const subscriptionsWithDetails = await Promise.all(
+      subscriptions.map(async (sub) => await sub.getWithPlanDetails())
+    );
+    
+    res.json(subscriptionsWithDetails);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -199,9 +204,20 @@ export const deleteUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Prevent deleting admin users (safety check)
+    if (user.role === 'Admin') {
+      return res.status(403).json({ message: 'Cannot delete admin users' });
+    }
+
+    // Prevent users from deleting themselves
+    if (req.user.id === user.id) {
+      return res.status(403).json({ message: 'Cannot delete your own account' });
+    }
+
     await user.delete();
-    res.json({ message: 'User deleted successfully' });
+    res.json({ message: 'User and all associated subscriptions deleted successfully' });
   } catch (error) {
+    console.error('Delete user error:', error);
     res.status(500).json({ message: error.message });
   }
 };

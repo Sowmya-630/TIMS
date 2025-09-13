@@ -86,11 +86,22 @@ export class SubscriptionPlan {
     return await SubscriptionPlan.findById(this.id);
   }
 
-  // Delete plan
+  // Delete plan (with cascade deletion of subscriptions)
   async delete() {
-    const query = 'DELETE FROM subscription_plans WHERE id = ?';
-    await executeQuery(query, [this.id]);
-    return true;
+    try {
+      // First delete all subscriptions using this plan
+      const deleteSubscriptionsQuery = 'DELETE FROM subscriptions WHERE plan_id = ?';
+      await executeQuery(deleteSubscriptionsQuery, [this.id]);
+      
+      // Then delete the plan
+      const deletePlanQuery = 'DELETE FROM subscription_plans WHERE id = ?';
+      await executeQuery(deletePlanQuery, [this.id]);
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting plan:', error);
+      throw new Error('Failed to delete plan and associated subscriptions');
+    }
   }
 
   // Get plan count

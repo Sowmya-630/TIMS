@@ -1,26 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { subscriptionService } from '../services/subscriptionService';
-import { User, Subscription, LoginRequest, RegisterRequest } from '../types';
-
-// Legacy interface for backward compatibility
-export interface LegacyUser {
-  id: string;
-  email: string;
-  fullName: string;
-  role: 'user' | 'admin';
-}
-
-export interface LegacySubscription {
-  id: string;
-  planId: string;
-  planName: string;
-  status: 'active' | 'cancelled' | 'expired';
-  startDate: string;
-  endDate: string;
-  price: number;
-  features: string[];
-}
+import { User, Subscription } from '../types';
 
 interface AuthContextType {
   user: User | null;

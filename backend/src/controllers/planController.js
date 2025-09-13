@@ -93,8 +93,9 @@ export const deletePlan = async (req, res) => {
     }
 
     await plan.delete();
-    res.json({ message: 'Plan deleted successfully' });
+    res.json({ message: 'Plan and all associated subscriptions deleted successfully' });
   } catch (error) {
+    console.error('Delete plan error:', error);
     res.status(500).json({ message: error.message });
   }
 };

@@ -18,8 +18,14 @@ router.post('/register', registerUser);
 router.post('/login', loginUser);
 
 // Authenticated routes
-router.get('/profile', verifyToken, (req, res) => getUserById(req, res));
-router.put('/profile', verifyToken, (req, res) => updateUser(req, res));
+router.get('/profile', verifyToken, (req, res) => {
+  req.params.id = req.user.id;
+  getUserById(req, res);
+});
+router.put('/profile', verifyToken, (req, res) => {
+  req.params.id = req.user.id;
+  updateUser(req, res);
+});
 router.put('/password', verifyToken, updatePassword);
 
 // User-specific routes

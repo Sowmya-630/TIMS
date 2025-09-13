@@ -95,11 +95,22 @@ export class User {
     return await comparePassword(password, users[0].password);
   }
 
-  // Delete user
+  // Delete user (with cascade deletion of subscriptions)
   async delete() {
-    const query = 'DELETE FROM users WHERE id = ?';
-    await executeQuery(query, [this.id]);
-    return true;
+    try {
+      // First delete all subscriptions for this user
+      const deleteSubscriptionsQuery = 'DELETE FROM subscriptions WHERE user_id = ?';
+      await executeQuery(deleteSubscriptionsQuery, [this.id]);
+      
+      // Then delete the user
+      const deleteUserQuery = 'DELETE FROM users WHERE id = ?';
+      await executeQuery(deleteUserQuery, [this.id]);
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw new Error('Failed to delete user and associated data');
+    }
   }
 
   // Get user count
