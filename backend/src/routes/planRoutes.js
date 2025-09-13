@@ -1,13 +1,32 @@
 import express from 'express';
-import { createPlan, getPlans } from '../controllers/planController.js';
-import { verifyToken, verifyRole } from '../middlewares/authMiddleware.js';
+import { 
+  createPlan, 
+  getPlans, 
+  getActivePlans, 
+  getPlanById, 
+  updatePlan, 
+  deletePlan 
+} from '../controllers/planController.js';
+import { verifyToken, verifyRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Anyone logged in can view plans
+// Get active plans (public)
+router.get('/active', getActivePlans);
+
+// Get all plans (authenticated users)
 router.get('/', verifyToken, getPlans);
 
-// Only admin can create plans
-router.post('/', verifyToken, verifyRole('admin'), createPlan);
+// Get plan by ID (authenticated users)
+router.get('/:id', verifyToken, getPlanById);
+
+// Create plan (admin only)
+router.post('/', verifyToken, verifyRole('Admin'), createPlan);
+
+// Update plan (admin only)
+router.put('/:id', verifyToken, verifyRole('Admin'), updatePlan);
+
+// Delete plan (admin only)
+router.delete('/:id', verifyToken, verifyRole('Admin'), deletePlan);
 
 export default router;

@@ -9,20 +9,17 @@ import { dirname, join } from 'path';
 import fs from 'fs';
 
 // Import routes
-import authRoutes from './routes/auth.js';
-import userRoutes from './routes/users.js';
-import productRoutes from './routes/products.js';
-import supplierRoutes from './routes/suppliers.js';
-import transactionRoutes from './routes/transactions.js';
-import orderRoutes from './routes/orders.js';
-import notificationRoutes from './routes/notifications.js';
+import userRoutes from './routes/userRoutes.js';
+import planRoutes from './routes/planRoutes.js';
+import subscriptionRoutes from './routes/subscriptionRoutes.js';
+import discountRoutes from './routes/discountRoutes.js';
+import auditRoutes from './routes/auditRoutes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
 import { generalLimiter, authLimiter } from './middleware/rateLimiter.js';
 
-// Import services
-import NotificationService from './services/notificationService.js';
+// Import services (removed old notification service)
 
 // Import database
 import { testConnection } from './config/database.js';
@@ -97,13 +94,11 @@ app.get('/health', (req, res) => {
 });
 
 // API routes
-app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/suppliers', supplierRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', authLimiter, userRoutes);
+app.use('/api/plans', planRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/discounts', discountRoutes);
+app.use('/api/audits', auditRoutes);
 
 // Serve static files (if needed)
 app.use(express.static(join(__dirname, '../public')));
@@ -129,8 +124,7 @@ const startServer = async () => {
       logger.warn('Please check your database configuration in the .env file.');
     }
 
-    // Start notification service
-    const notificationService = new NotificationService();
+    // Subscription management system ready
 
     // Start server
     app.listen(PORT, () => {
@@ -143,13 +137,11 @@ const startServer = async () => {
     // Graceful shutdown
     process.on('SIGTERM', () => {
       logger.info('SIGTERM received. Shutting down gracefully...');
-      notificationService.stopJobs();
       process.exit(0);
     });
 
     process.on('SIGINT', () => {
       logger.info('SIGINT received. Shutting down gracefully...');
-      notificationService.stopJobs();
       process.exit(0);
     });
 

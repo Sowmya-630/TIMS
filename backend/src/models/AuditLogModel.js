@@ -28,22 +28,6 @@ export class AuditLog {
     return new AuditLog(logs[0]);
   }
 
-  // Get logs by user ID
-  static async findByUserId(userId, page = 1, limit = 10) {
-    const offset = (page - 1) * limit;
-    const query = 'SELECT * FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?';
-    const logs = await executeQuery(query, [userId, limit, offset]);
-    return logs.map(log => new AuditLog(log));
-  }
-
-  // Get logs by entity
-  static async findByEntity(entityType, entityId, page = 1, limit = 10) {
-    const offset = (page - 1) * limit;
-    const query = 'SELECT * FROM audit_logs WHERE entity_type = ? AND entity_id = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?';
-    const logs = await executeQuery(query, [entityType, entityId, limit, offset]);
-    return logs.map(log => new AuditLog(log));
-  }
-
   // Get all logs with pagination and filtering
   static async findAll(page = 1, limit = 10, filters = {}) {
     const offset = (page - 1) * limit;
@@ -69,16 +53,6 @@ export class AuditLog {
     if (filters.entityId) {
       conditions.push('entity_id = ?');
       params.push(filters.entityId);
-    }
-
-    if (filters.startDate) {
-      conditions.push('timestamp >= ?');
-      params.push(filters.startDate);
-    }
-
-    if (filters.endDate) {
-      conditions.push('timestamp <= ?');
-      params.push(filters.endDate);
     }
 
     if (conditions.length > 0) {
