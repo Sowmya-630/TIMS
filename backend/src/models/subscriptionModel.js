@@ -20,7 +20,7 @@ export class Subscription {
   // Create a new subscription
   static async create(subscriptionData) {
     const { userId, planId, status = 'Active', startDate, endDate, autoRenew = false, discountId = null } = subscriptionData;
-    
+
     const query = `INSERT INTO subscriptions (user_id, plan_id, status, start_date, end_date, auto_renew, discount_id) VALUES (?, ?, ?, ?, ?, ?, ?)`;
     const result = await executeQuery(query, [userId, planId, status, startDate, endDate, autoRenew ? 1 : 0, discountId]);
 
@@ -179,6 +179,35 @@ export class Subscription {
       plan: plan ? plan.toJSON() : null,
       user: user ? user.toJSON() : null
     };
+  }
+
+  // Get subscription with full details (user, plan, discount)
+  async getFullDetails() {
+    const plan = await SubscriptionPlan.findById(this.planId);
+    const user = await User.findById(this.userId);
+    let discount = null;
+
+    if (this.discountId) {
+      const { Discount } = await import('./discountModel.js');
+      discount = await Discount.findById(this.discountId);
+    }
+
+    return {
+      ...this.toJSON(),
+      plan: plan ? plan.toJSON() : null,
+      user: user ? user.toJSON() : null,
+      discount: discount ? discount.toJSON() : null
+    };
+  }
+
+  // Get user details for this subscription
+  async getUser() {
+    return await User.findById(this.userId);
+  }
+
+  // Get plan details for this subscription
+  async getPlan() {
+    return await SubscriptionPlan.findById(this.planId);
   }
 
   // Get audit history

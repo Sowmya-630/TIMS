@@ -129,6 +129,34 @@ export class User {
     return await Subscription.findByUserId(this.id, status);
   }
 
+  // Get user's active subscription
+  async getActiveSubscription() {
+    const { Subscription } = await import('./subscriptionModel.js');
+    const subscriptions = await Subscription.findByUserId(this.id, 'Active');
+    return subscriptions.length > 0 ? subscriptions[0] : null;
+  }
+
+  // Check if user has any subscription
+  async hasSubscription() {
+    const subscriptions = await this.getSubscriptions();
+    return subscriptions.length > 0;
+  }
+
+  // Get user's subscription history
+  async getSubscriptionHistory() {
+    return await this.getSubscriptions();
+  }
+
+  // Get user with subscription details
+  async getWithSubscriptions() {
+    const subscriptions = await this.getSubscriptions();
+    return {
+      ...this.toJSON(),
+      subscriptions: subscriptions.map(sub => sub.toJSON()),
+      hasActiveSubscription: subscriptions.some(sub => sub.status === 'Active')
+    };
+  }
+
   // Convert to JSON (exclude sensitive data)
   toJSON() {
     return {
