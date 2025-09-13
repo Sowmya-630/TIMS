@@ -7,17 +7,12 @@ import { SubscriptionPlan } from '../types';
 import { 
   Package, 
   Search, 
-  Filter, 
   CheckCircle, 
-  Star,
   Zap,
   Shield,
   Headphones,
   Globe,
-  Users,
-  Database,
   Clock,
-  Gift,
   Loader
 } from 'lucide-react';
 
