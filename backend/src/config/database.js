@@ -21,7 +21,7 @@ for (const envPath of candidateEnvPaths) {
   }
 }
 
-const databaseFile = process.env.SQLITE_DB_PATH || join(__dirname, '../../tims.db');
+const databaseFile = process.env.SQLITE_DB_PATH || join(__dirname, '../../subscription_management.db');
 
 let dbPromise;
 const getDb = async () => {

@@ -21,27 +21,13 @@ export class Subscription {
   static async create(subscriptionData) {
     const { userId, planId, status = 'Active', startDate, endDate, autoRenew = false, discountId = null } = subscriptionData;
     
-    const query = `
-      INSERT INTO subscriptions (user_id, plan_id, status, start_date, end_date, auto_renew, discount_id) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    const result = await executeQuery(query, [
-      userId, 
-      planId, 
-      status, 
-      startDate, 
-      endDate, 
-      autoRenew ? 1 : 0, 
-      discountId
-    ]);
-    
+    const query = `INSERT INTO subscriptions (user_id, plan_id, status, start_date, end_date, auto_renew, discount_id) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    const result = await executeQuery(query, [userId, planId, status, startDate, endDate, autoRenew ? 1 : 0, discountId]);
+
     // Create audit entry for subscription creation
-    await executeQuery(
-      'INSERT INTO subscription_audit (subscription_id, user_id, action, details) VALUES (?, ?, ?, ?)',
-      [result.insertId, userId, 'create', `Subscription created with plan ${planId}`]
-    );
-    
+    await executeQuery('INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
+      [userId, 'create', 'subscription', result.insertId, `Subscription created with plan ${planId}`]);
+
     return await Subscription.findById(result.insertId);
   }
 
@@ -49,7 +35,6 @@ export class Subscription {
   static async findById(id) {
     const query = 'SELECT * FROM subscriptions WHERE id = ?';
     const subscriptions = await executeQuery(query, [id]);
-    
     if (subscriptions.length === 0) return null;
     return new Subscription(subscriptions[0]);
   }
@@ -93,6 +78,7 @@ export class Subscription {
     }
 
     query += ' ORDER BY created_at DESC';
+
     const subscriptions = await executeQuery(query, params);
     return subscriptions.map(subscription => new Subscription(subscription));
   }
@@ -117,15 +103,12 @@ export class Subscription {
 
     values.push(this.id);
     const query = `UPDATE subscriptions SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-    
     await executeQuery(query, values);
-    
+
     // Create audit entry for subscription update
-    await executeQuery(
-      'INSERT INTO subscription_audit (subscription_id, user_id, action, details) VALUES (?, ?, ?, ?)',
-      [this.id, userId, 'update', auditDetails.join(', ')]
-    );
-    
+    await executeQuery('INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
+      [userId, 'update', 'subscription', this.id, auditDetails.join(', ')]);
+
     return await Subscription.findById(this.id);
   }
 
@@ -133,13 +116,11 @@ export class Subscription {
   async cancel(userId, reason = 'User requested cancellation') {
     const query = 'UPDATE subscriptions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
     await executeQuery(query, ['Cancelled', this.id]);
-    
+
     // Create audit entry for subscription cancellation
-    await executeQuery(
-      'INSERT INTO subscription_audit (subscription_id, user_id, action, details) VALUES (?, ?, ?, ?)',
-      [this.id, userId, 'cancel', reason]
-    );
-    
+    await executeQuery('INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
+      [userId, 'cancel', 'subscription', this.id, reason]);
+
     return await Subscription.findById(this.id);
   }
 
@@ -147,30 +128,20 @@ export class Subscription {
   async renew(userId, newEndDate) {
     const query = 'UPDATE subscriptions SET status = ?, end_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?';
     await executeQuery(query, ['Active', newEndDate, this.id]);
-    
+
     // Create audit entry for subscription renewal
-    await executeQuery(
-      'INSERT INTO subscription_audit (subscription_id, user_id, action, details) VALUES (?, ?, ?, ?)',
-      [this.id, userId, 'renew', `Renewed until ${newEndDate}`]
-    );
-    
+    await executeQuery('INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
+      [userId, 'renew', 'subscription', this.id, `Renewed until ${newEndDate}`]);
+
     return await Subscription.findById(this.id);
   }
 
   // Record usage
   async recordUsage(dataAmount) {
     // Update total data used in subscription
-    await executeQuery(
-      'UPDATE subscriptions SET data_used = data_used + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [dataAmount, this.id]
-    );
-    
-    // Insert usage record
-    await executeQuery(
-      'INSERT INTO subscription_usage (subscription_id, data_used) VALUES (?, ?)',
-      [this.id, dataAmount]
-    );
-    
+    await executeQuery('UPDATE subscriptions SET data_used = data_used + ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [dataAmount, this.id]);
+
     return await Subscription.findById(this.id);
   }
 
@@ -202,7 +173,7 @@ export class Subscription {
   async getWithPlanDetails() {
     const plan = await SubscriptionPlan.findById(this.planId);
     const user = await User.findById(this.userId);
-    
+
     return {
       ...this.toJSON(),
       plan: plan ? plan.toJSON() : null,
@@ -210,23 +181,11 @@ export class Subscription {
     };
   }
 
-  // Get usage history
-  async getUsageHistory() {
-    const query = 'SELECT * FROM subscription_usage WHERE subscription_id = ? ORDER BY usage_date DESC';
-    const usageHistory = await executeQuery(query, [this.id]);
-    
-    return usageHistory.map(usage => ({
-      id: usage.id,
-      dataUsed: usage.data_used,
-      usageDate: usage.usage_date
-    }));
-  }
-
   // Get audit history
   async getAuditHistory() {
-    const query = 'SELECT * FROM subscription_audit WHERE subscription_id = ? ORDER BY timestamp DESC';
-    const auditHistory = await executeQuery(query, [this.id]);
-    
+    const query = 'SELECT * FROM audit_logs WHERE entity_type = ? AND entity_id = ? ORDER BY timestamp DESC';
+    const auditHistory = await executeQuery(query, ['subscription', this.id]);
+
     return auditHistory.map(audit => ({
       id: audit.id,
       userId: audit.user_id,

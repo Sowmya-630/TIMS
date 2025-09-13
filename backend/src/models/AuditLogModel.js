@@ -15,19 +15,8 @@ export class AuditLog {
   static async create(logData) {
     const { userId, action, entityType, entityId, details } = logData;
     
-    const query = `
-      INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) 
-      VALUES (?, ?, ?, ?, ?)
-    `;
-    
-    const result = await executeQuery(query, [
-      userId, 
-      action, 
-      entityType, 
-      entityId, 
-      details
-    ]);
-    
+    const query = `INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)`;
+    const result = await executeQuery(query, [userId, action, entityType, entityId, details]);
     return await AuditLog.findById(result.insertId);
   }
 
@@ -35,7 +24,6 @@ export class AuditLog {
   static async findById(id) {
     const query = 'SELECT * FROM audit_logs WHERE id = ?';
     const logs = await executeQuery(query, [id]);
-    
     if (logs.length === 0) return null;
     return new AuditLog(logs[0]);
   }
@@ -45,7 +33,6 @@ export class AuditLog {
     const offset = (page - 1) * limit;
     const query = 'SELECT * FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?';
     const logs = await executeQuery(query, [userId, limit, offset]);
-    
     return logs.map(log => new AuditLog(log));
   }
 
@@ -54,7 +41,6 @@ export class AuditLog {
     const offset = (page - 1) * limit;
     const query = 'SELECT * FROM audit_logs WHERE entity_type = ? AND entity_id = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?';
     const logs = await executeQuery(query, [entityType, entityId, limit, offset]);
-    
     return logs.map(log => new AuditLog(log));
   }
 

@@ -18,21 +18,8 @@ export class Discount {
   static async create(discountData) {
     const { name, description, discountPercent, startDate, endDate, planId = null, isActive = true } = discountData;
     
-    const query = `
-      INSERT INTO discounts (name, description, discount_percent, start_date, end_date, plan_id, is_active) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    const result = await executeQuery(query, [
-      name, 
-      description, 
-      discountPercent, 
-      startDate, 
-      endDate, 
-      planId, 
-      isActive ? 1 : 0
-    ]);
-    
+    const query = `INSERT INTO discounts (name, description, discount_percent, start_date, end_date, plan_id, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    const result = await executeQuery(query, [name, description, discountPercent, startDate, endDate, planId, isActive ? 1 : 0]);
     return await Discount.findById(result.insertId);
   }
 
@@ -40,7 +27,6 @@ export class Discount {
   static async findById(id) {
     const query = 'SELECT * FROM discounts WHERE id = ?';
     const discounts = await executeQuery(query, [id]);
-    
     if (discounts.length === 0) return null;
     return new Discount(discounts[0]);
   }
@@ -81,12 +67,7 @@ export class Discount {
   // Get active discounts
   static async findActive(planId = null) {
     const currentDate = new Date().toISOString();
-    let query = `
-      SELECT * FROM discounts 
-      WHERE is_active = 1 
-      AND start_date <= ? 
-      AND end_date >= ?
-    `;
+    let query = `SELECT * FROM discounts WHERE is_active = 1 AND start_date <= ? AND end_date >= ?`;
     let params = [currentDate, currentDate];
 
     if (planId) {
@@ -95,6 +76,7 @@ export class Discount {
     }
 
     query += ' ORDER BY discount_percent DESC';
+
     const discounts = await executeQuery(query, params);
     return discounts.map(discount => new Discount(discount));
   }
@@ -117,7 +99,6 @@ export class Discount {
 
     values.push(this.id);
     const query = `UPDATE discounts SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-    
     await executeQuery(query, values);
     return await Discount.findById(this.id);
   }

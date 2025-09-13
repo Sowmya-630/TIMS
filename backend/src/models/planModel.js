@@ -18,21 +18,8 @@ export class SubscriptionPlan {
   static async create(planData) {
     const { name, description, productType, price, dataQuota, durationDays, isActive = true } = planData;
     
-    const query = `
-      INSERT INTO subscription_plans (name, description, product_type, price, data_quota, duration_days, is_active) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    const result = await executeQuery(query, [
-      name, 
-      description, 
-      productType, 
-      price, 
-      dataQuota, 
-      durationDays, 
-      isActive ? 1 : 0
-    ]);
-    
+    const query = `INSERT INTO subscription_plans (name, description, product_type, price, data_quota, duration_days, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    const result = await executeQuery(query, [name, description, productType, price, dataQuota, durationDays, isActive ? 1 : 0]);
     return await SubscriptionPlan.findById(result.insertId);
   }
 
@@ -40,7 +27,6 @@ export class SubscriptionPlan {
   static async findById(id) {
     const query = 'SELECT * FROM subscription_plans WHERE id = ?';
     const plans = await executeQuery(query, [id]);
-    
     if (plans.length === 0) return null;
     return new SubscriptionPlan(plans[0]);
   }
@@ -96,7 +82,6 @@ export class SubscriptionPlan {
 
     values.push(this.id);
     const query = `UPDATE subscription_plans SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-    
     await executeQuery(query, values);
     return await SubscriptionPlan.findById(this.id);
   }

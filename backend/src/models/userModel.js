@@ -16,11 +16,7 @@ export class User {
     const { fullName, email, password, role = 'EndUser' } = userData;
     const hashedPassword = await hashPassword(password);
     
-    const query = `
-      INSERT INTO users (full_name, email, password, role) 
-      VALUES (?, ?, ?, ?)
-    `;
-    
+    const query = `INSERT INTO users (full_name, email, password, role) VALUES (?, ?, ?, ?)`;
     const result = await executeQuery(query, [fullName, email, hashedPassword, role]);
     return await User.findById(result.insertId);
   }
@@ -29,7 +25,6 @@ export class User {
   static async findById(id) {
     const query = 'SELECT * FROM users WHERE id = ?';
     const users = await executeQuery(query, [id]);
-    
     if (users.length === 0) return null;
     return new User(users[0]);
   }
@@ -38,7 +33,6 @@ export class User {
   static async findByEmail(email) {
     const query = 'SELECT * FROM users WHERE email = ?';
     const users = await executeQuery(query, [email]);
-    
     if (users.length === 0) return null;
     return new User(users[0]);
   }
@@ -78,7 +72,7 @@ export class User {
 
     values.push(this.id);
     const query = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
-    
+
     await executeQuery(query, values);
     return await User.findById(this.id);
   }
@@ -87,7 +81,7 @@ export class User {
   async updatePassword(newPassword) {
     const hashedPassword = await hashPassword(newPassword);
     const query = 'UPDATE users SET password = ? WHERE id = ?';
-    
+
     await executeQuery(query, [hashedPassword, this.id]);
     return true;
   }
@@ -96,7 +90,7 @@ export class User {
   async verifyPassword(password) {
     const query = 'SELECT password FROM users WHERE id = ?';
     const users = await executeQuery(query, [this.id]);
-    
+
     if (users.length === 0) return false;
     return await comparePassword(password, users[0].password);
   }
@@ -147,4 +141,3 @@ export class User {
     };
   }
 }
-
